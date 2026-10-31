@@ -1,0 +1,107 @@
+"""CodeWorld command line interface."""
+from __future__ import annotations
+import argparse
+import json
+import sys
+from pathlib import Path
+
+from .config import get_settings
+
+
+def _repo(settings, arg: str, index: bool = True, level: int | None = None):
+    from .db import registry_db
+    from .indexer import index_repo
+    from .ingest import register_repo, repo_ref
+    from .service import get_context
+    p = Path(arg).expanduser()
+    if p.is_dir():
+        p = p.resolve()
+        with registry_db(settings.data_dir) as c:
+            row = c.execute("SELECT id FROM repos WHERE source=? AND kind='local'", (str(p),)).fetchone()
+        ref = repo_ref(settings, row["id"]) if row else register_repo(settings, p.name, str(p), "local")
+        if index:
+            stats = index_repo(settings, ref, lambda st, pc: sys.stderr.write(f"\r[{pc:5.1f}%] {st:<22}") or None, level=level)
+            sys.stderr.write(f"\r[100%] indexed {stats['files']} files, {stats['loc']:,} LOC, {stats['edges'].get('CALLS', 0)} call edges in {stats['seconds']}s\n")
+        return get_context(ref.id, settings)
+    ctx = get_context(arg, settings)
+    if ctx is None:
+        sys.exit(f"repository '{arg}' not found (give a directory path or a repo id from `codeworld repos`)")
+    return ctx
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(prog="codeworld", description="Graph-RAG codebase understanding")
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    sub.add_parser("repos", help="list indexed repositories")
+    s = sub.add_parser("serve", help="start the API server"); s.add_argument("--host", default="127.0.0.1"); s.add_argument("--port", type=int, default=8000)
+    s = sub.add_parser("index", help="index a local directory"); s.add_argument("path"); s.add_argument("--level", type=int, choices=[0, 1, 2, 3])
+    s = sub.add_parser("ask", help="ask a question"); s.add_argument("repo"); s.add_argument("question"); s.add_argument("--mode", default="graph"); s.add_argument("--no-agent", action="store_true")
+    s = sub.add_parser("impact", help="change-impact analysis"); s.add_argument("repo"); s.add_argument("target")
+    s = sub.add_parser("review", help="AI-PR guardrail on a git range or a diff file")
+    s.add_argument("repo"); s.add_argument("--base", default="origin/main"); s.add_argument("--head", default="HEAD"); s.add_argument("--diff-file")
+    s.add_argument("--fail-on", choices=["high", "medium", "never"], default="high"); s.add_argument("--json", action="store_true"); s.add_argument("--output")
+    s = sub.add_parser("onboard", help="write the onboarding guide"); s.add_argument("repo"); s.add_argument("--output", default="ONBOARDING.md"); s.add_argument("--narrate", action="store_true")
+    s = sub.add_parser("health", help="health report"); s.add_argument("repo")
+    s = sub.add_parser("security", help="attack-surface report"); s.add_argument("repo")
+    s = sub.add_parser("mcp", help="run the MCP server (stdio)"); s.add_argument("--repo", required=True)
+    s = sub.add_parser("eval", help="research evaluation harness")
+    s.add_argument("what", choices=["qa", "impact", "callgraph", "resolver-ablation"]); s.add_argument("repo")
+    s.add_argument("--dataset"); s.add_argument("--modes", default="bm25,vector,hybrid,graph,agentic"); s.add_argument("--k", type=int, default=5)
+    s.add_argument("--truth"); s.add_argument("--commits", type=int, default=300); s.add_argument("--out")
+    a = ap.parse_args(argv)
+    st = get_settings()
+
+    if a.cmd == "serve":
+        import uvicorn
+        uvicorn.run("codeworld.api.main:app", host=a.host, port=a.port, reload=False)
+    elif a.cmd == "repos":
+        from .db import registry_db
+        with registry_db(st.data_dir) as c:
+            for r in c.execute("SELECT id,name,status,kind FROM repos ORDER BY created DESC"):
+                print(f"{r['id']:<30} {r['status']:<8} {r['kind']:<6} {r['name']}")
+    elif a.cmd == "index":
+        _repo(st, a.path, level=a.level)
+    elif a.cmd == "ask":
+        from .agent.answer import ask
+        r = ask(_repo(st, a.repo), a.question, a.mode, not a.no_agent)
+        print(r["answer"]); print(f"\n[{r['provider']} | intent={r['intent']} | {r['latency_ms']} ms | citation precision={r['citation_precision']}]")
+    elif a.cmd == "impact":
+        from .analysis.impact import impact
+        r = impact(_repo(st, a.repo), a.target)
+        print(json.dumps({k: r[k] for k in r if k != "graph"}, indent=2, default=str))
+    elif a.cmd == "review":
+        from .analysis import diffreview
+        ctx = _repo(st, a.repo)
+        diff = Path(a.diff_file).read_text() if a.diff_file else diffreview.git_diff(ctx.ref.src, a.base, a.head)
+        rep = diffreview.review_diff(ctx, diff) if not a.diff_file else diffreview.review_patch(ctx, diff)
+        out = json.dumps({k: v for k, v in rep.items() if k != "graph"}, indent=2) if a.json else rep["markdown"]
+        print(out)
+        if a.output:
+            Path(a.output).write_text(rep["markdown"])
+        if a.fail_on != "never" and (rep["counts"]["high"] or (a.fail_on == "medium" and rep["counts"]["medium"])):
+            sys.exit(1)
+    elif a.cmd == "onboard":
+        from .analysis import onboarding
+        Path(a.output).write_text(onboarding.markdown(_repo(st, a.repo), a.narrate)); print(f"wrote {a.output}")
+    elif a.cmd == "health":
+        from .analysis import health
+        h = health.health_report(_repo(st, a.repo))
+        print(f"health score {h['score']}/100 | cycles {len(h['cycles'])} | layering violations {len(h['layering'])} | dead code {len(h['dead_code'])} | "
+              f"duplicates {len(h['duplicates'])} | graph test coverage {h['untested']['coverage']:.0%}")
+        for d in h["dead_code"][:10]: print(f"  dead?  {d['name']} ({d['path']}:{d['line']}) [{d['confidence']}]")
+        for d in h["duplicates"][:5]: print(f"  dup    {d['a']['name']} ~ {d['b']['name']} ({d['similarity']})")
+        for v in h["layering"][:5]: print(f"  layer  {v['from']} -> {v['to']}: {v['rule']}")
+    elif a.cmd == "security":
+        from .analysis import security
+        r = security.security_report(_repo(st, a.repo)); print(json.dumps(r["summary"])); print(r["disclaimer"])
+        for f in r["findings"][:20]: print(f"  [{f['severity']}] {f['message']} - {f['symbol']} ({f['path']}:{f['line']})")
+    elif a.cmd == "mcp":
+        from .mcp_server import serve
+        serve(a.repo)
+    elif a.cmd == "eval":
+        from .evaluation import runner
+        runner.run(st, a)
+
+
+if __name__ == "__main__":
+    main()
