@@ -31,6 +31,21 @@ _settings = get_settings()
 app.add_middleware(CORSMiddleware, allow_origins=_settings.cors_origins, allow_methods=["*"], allow_headers=["*"])
 
 
+@app.middleware("http")
+async def token_auth(request, call_next):
+    """Optional shared-secret auth. Set CODEWORLD_API_TOKEN to require `Authorization: Bearer <token>` (or X-API-Key) on /api/*."""
+    import hmac
+    import os
+    from fastapi.responses import JSONResponse
+    token = os.environ.get("CODEWORLD_API_TOKEN", "")
+    p = request.url.path
+    if token and p.startswith("/api/") and p != "/api/health" and request.method != "OPTIONS":
+        given = request.headers.get("x-api-key") or request.headers.get("authorization", "").removeprefix("Bearer ").strip()
+        if not hmac.compare_digest(given.encode(), token.encode()):
+            return JSONResponse({"detail": "unauthorized: missing or wrong API token"}, status_code=401)
+    return await call_next(request)
+
+
 # ----------------------------------------------------------------------------- helpers
 def _ctx(repo_id: str):
     ctx = get_context(repo_id)
@@ -81,7 +96,11 @@ def _start(ref, work) -> dict:
 def api_health():
     s = get_settings()
     llm_ok = s.llm_provider != "none"
-    return {"status": "ok", "version": __version__, "llm": {"provider": s.llm_provider, "model": s.llm_model if llm_ok else None},
+    import os
+    from ..ai.llm import get_llm
+    llm = get_llm(s)
+    return {"status": "ok", "version": __version__, "auth": bool(os.environ.get("CODEWORLD_API_TOKEN")),
+            "llm": {"provider": s.llm_provider if llm.available else "none", "model": s.llm_model if llm.available else None, "chain": llm.name, "usage": llm.usage()},
             "embeddings": {"backend": s.embed_backend, "model": get_embedder(s).name}, "resolver_level": s.resolver_level}
 
 
@@ -251,6 +270,38 @@ def _container_detail(ctx, nid):
     return d
 
 
+@app.get("/api/repos/{repo_id}/lens")
+def lens(repo_id: str, path: str):
+    """Per-symbol facts for editor CodeLens: callers, tests, effects, public-API flag."""
+    from ..analysis import health
+    ctx = _ctx(repo_id)
+    g = ctx.graph
+    covered = ctx.cached("tested_set", lambda: health.tested_set(g))
+    out = []
+    for sid in g.by_path.get(path, []):
+        n = g.nodes[sid]
+        if n["kind"] not in ("function", "method", "class") or n["props"].get("is_test"):
+            continue
+        callers = g.callers(sid, 1, 0.5)
+        trans = g.callers(sid, 4, 0.5)
+        out.append({"id": sid, "name": n["qualname"], "kind": n["kind"], "line": n["start"], "end": n["end"], "callers": len(callers),
+                    "transitive": len(trans), "tested": sid in covered, "effects": n["props"].get("effects", []),
+                    "public_api": bool(n["props"].get("public_api")), "route": n["props"].get("route"), "complexity": n["props"].get("complexity", 1)})
+    return out
+
+
+class ProposeBody(BaseModel):
+    task: str
+
+
+@app.post("/api/repos/{repo_id}/propose")
+def propose_patch(repo_id: str, body: ProposeBody):
+    from ..agent.patch import propose
+    r = propose(_ctx(repo_id), body.task)
+    r.pop("raw", None)
+    return r
+
+
 @app.get("/api/repos/{repo_id}/ancestors")
 def ancestors(repo_id: str, id: str):
     g = _ctx(repo_id).graph
@@ -260,7 +311,7 @@ def ancestors(repo_id: str, id: str):
 
 
 @app.get("/api/repos/{repo_id}/search")
-def search(repo_id: str, q: str, mode: str = "graph", k: int = 10):
+def search(repo_id: str, q: str, mode: str = "auto", k: int = 10):
     ctx = _ctx(repo_id)
     from ..ai.intent import classify
     return {"hits": [h.to_dict(300) for h in ctx.retriever.search(q, mode, k, classify(q))]}
@@ -275,7 +326,7 @@ def symbols(repo_id: str, q: str = "", limit: int = 20):
 
 class AskBody(BaseModel):
     question: str
-    mode: str = "graph"
+    mode: str = "auto"
     agent: bool = True
     history: list[dict] = []
     k: int = 8

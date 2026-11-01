@@ -33,8 +33,9 @@ def api_id(method: str, path: str) -> str: return f"api:{method} {path}"
 
 
 class GraphBuilder:
-    def __init__(self, parsed: dict[str, ParseResult], level: int = 2, root: Path | None = None, repo_name: str = "repo"):
+    def __init__(self, parsed: dict[str, ParseResult], level: int = 2, root: Path | None = None, repo_name: str = "repo", trace_edges: list | None = None):
         self.parsed, self.level, self.root, self.repo_name = parsed, level, root, repo_name
+        self.trace_edges = trace_edges or []
         self.nodes: dict[str, dict] = {}
         self.edges: dict[tuple, tuple] = {}
         self.sym: dict[str, tuple] = {}                 # id -> (Symbol, path)
@@ -147,6 +148,8 @@ class GraphBuilder:
                         sub = self.py_full.get(f"{base_mod}.{name}" if base_mod else name)
                         if sub:
                             tgt = ("module", sub)
+                    if tgt is None and P and name in self.parsed[P].module_vars:
+                        tgt = ("var", P)                  # re-exported module-level constant/variable
                     if tgt is None and not P and not imp.level:
                         tgt = ("ext", f"{imp.module}.{name}")
                     if tgt:
@@ -175,7 +178,7 @@ class GraphBuilder:
             return ("symbol", self.top[P][name])
         if depth < 3:
             t = self.scope(P).get(name)
-            if t and t[0] in ("symbol", "module"):
+            if t and t[0] in ("symbol", "module", "var"):
                 return t
         return None
 
@@ -253,6 +256,7 @@ class GraphBuilder:
         self._resolve_inheritance()
         self._resolve_imports_edges()
         self._record_scopes()
+        self._mark_public_api()
         self._resolve_calls()
         self._add_api_and_effects()
         self._add_test_edges()
@@ -350,7 +354,26 @@ class GraphBuilder:
         for path, pr in self.parsed.items():
             props = self.nodes[file_id(path)]["props"]
             props["exports"] = sorted(set(self.top[path]) | set(pr.module_vars))
+            props["all_names"] = pr.all_names
             props["scope"] = {a: [t[0], t[1]] for a, t in self.scope(path).items()}
+
+    def _mark_public_api(self):
+        """Symbols re-exported by an __init__ module or listed in __all__ are the library's public API."""
+        pub: set[str] = set()
+        for path, pr in self.parsed.items():
+            is_init = path.rsplit("/", 1)[-1] in ("__init__.py", "index.js", "index.ts")
+            if is_init:
+                for t in self.scope(path).values():
+                    if t[0] == "symbol":
+                        pub.add(t[1])
+            for n in pr.all_names:
+                if n in self.top[path]:
+                    pub.add(self.top[path][n])
+        for sid in pub:
+            self.nodes[sid]["props"]["public_api"] = True
+            if self.sym[sid][0].kind == "class":
+                for m in self.members.get(sid, {}).values():
+                    self.nodes[m]["props"]["public_api"] = True
 
     def _ext_import(self, fid, top, line, stdlib):
         eid = f"ext:{top}"
@@ -514,6 +537,43 @@ class GraphBuilder:
                 if ref and ref[0] == "symbol":
                     self._attach_route(ref[1], r["method"], r["path"])
         self._pending_api_calls = api_calls
+        if self.level >= 2:
+            self._add_override_edges()
+        self._apply_trace()
+
+    def _add_override_edges(self):
+        """Class-hierarchy analysis: a call resolved to Base.m may dispatch to an override in a subclass."""
+        subs: dict[str, list[str]] = defaultdict(list)
+        for c, bases in self.bases.items():
+            for b in bases:
+                subs[b].append(c)
+
+        def all_subs(c, seen=None):
+            seen = seen or set()
+            for s in subs.get(c, []):
+                if s not in seen:
+                    seen.add(s)
+                    all_subs(s, seen)
+            return seen
+        for (src, dst, typ), (conf, res, line) in list(self.edges.items()):
+            if typ != "CALLS" or dst not in self.sym or self.sym[dst][0].kind != "method" or res in ("name", "override", "trace"):
+                continue
+            cls = self.sym[dst][0].parent
+            if not cls or cls not in subs:
+                continue
+            for sc in all_subs(cls):
+                m = self.members[sc].get(self.sym[dst][0].name)
+                if m:
+                    self.add_edge(src, m, "CALLS", 0.7, "override", line)
+                    self.stats["calls_override"] += 1
+
+    def _apply_trace(self):
+        """Merge runtime-observed call edges (from `codeworld trace`) - resolves dynamic dispatch that static analysis cannot see."""
+        for a, b in self.trace_edges:
+            sa, sb = f"sym:{a}", f"sym:{b}"
+            if sa in self.nodes and sb in self.nodes:
+                self.add_edge(sa, sb, "CALLS", 1.0, "trace")
+                self.stats["calls_trace"] += 1
 
     def _attach_route(self, sid, method, rpath):
         s, _ = self.sym[sid]

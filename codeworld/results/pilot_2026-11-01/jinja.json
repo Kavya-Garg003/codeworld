@@ -1,0 +1,951 @@
+{
+ "repo": "jinja",
+ "steps": [
+  "callers",
+  "callgraph",
+  "commits",
+  "doc2code",
+  "guardrail",
+  "impact",
+  "scale"
+ ],
+ "commit": "5ef70112a1ff19c05324ff889dd30405b1002044",
+ "scale": {
+  "files": 59,
+  "loc": 22934,
+  "symbols": 1115,
+  "call_edges": 4404,
+  "index_seconds": 4.79,
+  "peak_rss_mb": 136,
+  "git": true
+ },
+ "trace_edges": 2110,
+ "doc2code": {
+  "n": 200,
+  "bm25": {
+   "sym_R@1": 0.77,
+   "sym_R@5": 0.925,
+   "sym_R@10": 0.94,
+   "sym_mrr": 0.8323,
+   "file_R@1": 0.875,
+   "file_R@5": 0.945,
+   "file_R@10": 0.98,
+   "file_mrr": 0.9084,
+   "file_recall": 0.98,
+   "sym_recall": 0.94,
+   "tokens": 1843.105,
+   "latency_ms": 3.35
+  },
+  "vector": {
+   "sym_R@1": 0.69,
+   "sym_R@5": 0.865,
+   "sym_R@10": 0.905,
+   "sym_mrr": 0.7703,
+   "file_R@1": 0.81,
+   "file_R@5": 0.95,
+   "file_R@10": 0.96,
+   "file_mrr": 0.8715,
+   "file_recall": 0.96,
+   "sym_recall": 0.905,
+   "tokens": 1143.395,
+   "latency_ms": 3.35
+  },
+  "hybrid": {
+   "sym_R@1": 0.7,
+   "sym_R@5": 0.91,
+   "sym_R@10": 0.955,
+   "sym_mrr": 0.7897,
+   "file_R@1": 0.825,
+   "file_R@5": 0.975,
+   "file_R@10": 0.98,
+   "file_mrr": 0.8855,
+   "file_recall": 0.98,
+   "sym_recall": 0.955,
+   "tokens": 1546.045,
+   "latency_ms": 6.135
+  },
+  "graph": {
+   "sym_R@1": 0.64,
+   "sym_R@5": 0.895,
+   "sym_R@10": 0.935,
+   "sym_mrr": 0.7487,
+   "file_R@1": 0.77,
+   "file_R@5": 0.95,
+   "file_R@10": 0.975,
+   "file_mrr": 0.8552,
+   "file_recall": 0.975,
+   "sym_recall": 0.935,
+   "tokens": 1856.47,
+   "latency_ms": 15.295
+  },
+  "auto": {
+   "sym_R@1": 0.7,
+   "sym_R@5": 0.91,
+   "sym_R@10": 0.955,
+   "sym_mrr": 0.7897,
+   "file_R@1": 0.825,
+   "file_R@5": 0.975,
+   "file_R@10": 0.98,
+   "file_mrr": 0.8855,
+   "file_recall": 0.98,
+   "sym_recall": 0.955,
+   "tokens": 1548.895,
+   "latency_ms": 6.105
+  }
+ },
+ "impact": {
+  "commits_train": 118,
+  "commits_test": 51,
+  "pairs": 213,
+  "methods": {
+   "static": {
+    "precision@5": 0.3296,
+    "recall@5": 0.2512,
+    "precision@10": 0.2653,
+    "recall@10": 0.3747,
+    "MAP@20": 0.2625
+   },
+   "cochange": {
+    "precision@5": 0.3981,
+    "recall@5": 0.1985,
+    "precision@10": 0.3784,
+    "recall@10": 0.3959,
+    "MAP@20": 0.3844
+   },
+   "hybrid": {
+    "precision@5": 0.4319,
+    "recall@5": 0.3346,
+    "precision@10": 0.3399,
+    "recall@10": 0.4327,
+    "MAP@20": 0.3897
+   },
+   "churn": {
+    "precision@5": 0.3174,
+    "recall@5": 0.2121,
+    "precision@10": 0.2808,
+    "recall@10": 0.3864,
+    "MAP@20": 0.2351
+   }
+  },
+  "truth_coverage_top10": {
+   "both": 0.1611053180396246,
+   "only_static": 0.1334723670490094,
+   "only_cochange": 0.2591240875912409,
+   "neither": 0.44629822732012514
+  }
+ },
+ "guardrail": {
+  "summary": {
+   "bad_member_import": {
+    "n": 15,
+    "detected": 15,
+    "recall": 1.0
+   },
+   "fake_package": {
+    "n": 15,
+    "detected": 15,
+    "recall": 1.0
+   },
+   "fake_attr_call": {
+    "n": 15,
+    "detected": 15,
+    "recall": 1.0
+   },
+   "duplicate_helper": {
+    "n": 15,
+    "detected": 15,
+    "recall": 1.0
+   },
+   "dangling_reference": {
+    "n": 3,
+    "detected": 3,
+    "recall": 1.0
+   },
+   "untested_change": {
+    "n": 11,
+    "detected": 11,
+    "recall": 1.0
+   }
+  },
+  "rows": {
+   "bad_member_import": [
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 0
+    }
+   ],
+   "fake_package": [
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 0
+    }
+   ],
+   "fake_attr_call": [
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 5
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 5
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 6
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 2
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 13
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 0
+    }
+   ],
+   "duplicate_helper": [
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 3
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 6
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 2
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 3
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 5
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 4
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 2
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 14
+    }
+   ],
+   "dangling_reference": [
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 1
+    }
+   ],
+   "untested_change": [
+    {
+     "detected": true,
+     "severity": "low",
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "low",
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "low",
+     "other_findings": 2
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 2
+    },
+    {
+     "detected": true,
+     "severity": "low",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "low",
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "low",
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "low",
+     "other_findings": 5
+    }
+   ]
+  }
+ },
+ "real_commits": {
+  "commits": 20,
+  "with_high": 0,
+  "with_medium_or_high": 5,
+  "verdicts": {
+   "pass": 15,
+   "warn": 5
+  },
+  "by_category": {
+   "untested-change/low": 12,
+   "untested-change/medium": 5,
+   "complexity/low": 2,
+   "blast-radius/medium": 2,
+   "import-cycle/medium": 2,
+   "duplicate-logic/medium": 2
+  },
+  "high_findings": [],
+  "rows": [
+   {
+    "sha": "ede7905d30",
+    "files": 1,
+    "verdict": "pass",
+    "counts": {
+     "high": 0,
+     "medium": 0,
+     "low": 0
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "8ee8f90d67",
+    "files": 1,
+    "verdict": "pass",
+    "counts": {
+     "high": 0,
+     "medium": 0,
+     "low": 0
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "574565b1ef",
+    "files": 1,
+    "verdict": "pass",
+    "counts": {
+     "high": 0,
+     "medium": 0,
+     "low": 0
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "0547cd6c58",
+    "files": 1,
+    "verdict": "pass",
+    "counts": {
+     "high": 0,
+     "medium": 0,
+     "low": 1
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "9c11dd65ff",
+    "files": 1,
+    "verdict": "pass",
+    "counts": {
+     "high": 0,
+     "medium": 0,
+     "low": 1
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "b7ce542db1",
+    "files": 1,
+    "verdict": "pass",
+    "counts": {
+     "high": 0,
+     "medium": 0,
+     "low": 1
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "0cc6ff9051",
+    "files": 1,
+    "verdict": "pass",
+    "counts": {
+     "high": 0,
+     "medium": 0,
+     "low": 0
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "15206881c0",
+    "files": 1,
+    "verdict": "pass",
+    "counts": {
+     "high": 0,
+     "medium": 0,
+     "low": 0
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "065334d1ee",
+    "files": 2,
+    "verdict": "pass",
+    "counts": {
+     "high": 0,
+     "medium": 0,
+     "low": 1
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "033c20015c",
+    "files": 1,
+    "verdict": "pass",
+    "counts": {
+     "high": 0,
+     "medium": 0,
+     "low": 0
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "ab8218c7a1",
+    "files": 1,
+    "verdict": "pass",
+    "counts": {
+     "high": 0,
+     "medium": 0,
+     "low": 0
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "877f6e51be",
+    "files": 1,
+    "verdict": "pass",
+    "counts": {
+     "high": 0,
+     "medium": 0,
+     "low": 0
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "eda8fe86fd",
+    "files": 1,
+    "verdict": "pass",
+    "counts": {
+     "high": 0,
+     "medium": 0,
+     "low": 1
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "66587ce989",
+    "files": 2,
+    "verdict": "warn",
+    "counts": {
+     "high": 0,
+     "medium": 1,
+     "low": 0
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "b8f4831d41",
+    "files": 2,
+    "verdict": "warn",
+    "counts": {
+     "high": 0,
+     "medium": 3,
+     "low": 2
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "ee832194cd",
+    "files": 3,
+    "verdict": "warn",
+    "counts": {
+     "high": 0,
+     "medium": 3,
+     "low": 2
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "d05bd3858c",
+    "files": 2,
+    "verdict": "pass",
+    "counts": {
+     "high": 0,
+     "medium": 0,
+     "low": 0
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "0cd6948192",
+    "files": 2,
+    "verdict": "warn",
+    "counts": {
+     "high": 0,
+     "medium": 1,
+     "low": 1
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "ded9915fc5",
+    "files": 5,
+    "verdict": "warn",
+    "counts": {
+     "high": 0,
+     "medium": 3,
+     "low": 4
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "aaa083d265",
+    "files": 2,
+    "verdict": "pass",
+    "counts": {
+     "high": 0,
+     "medium": 0,
+     "low": 0
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   }
+  ]
+ },
+ "callgraph": {
+  "truth_edges": 2110,
+  "visible_edges": 1552,
+  "levels": {
+   "level0": {
+    "precision": 0.3385,
+    "recall": 0.636,
+    "f1": 0.4418,
+    "precision_executed_callers": 0.5601,
+    "predicted": 3965,
+    "truth": 2110,
+    "tp": 1342,
+    "visible": {
+     "precision": 0.3385,
+     "recall": 0.8647,
+     "f1": 0.4865,
+     "precision_executed_callers": 0.5679,
+     "predicted": 3965,
+     "truth": 1552,
+     "tp": 1342
+    }
+   },
+   "level1": {
+    "precision": 0.583,
+    "recall": 0.3147,
+    "f1": 0.4087,
+    "precision_executed_callers": 0.9339,
+    "predicted": 1139,
+    "truth": 2110,
+    "tp": 664,
+    "visible": {
+     "precision": 0.5478,
+     "recall": 0.4021,
+     "f1": 0.4638,
+     "precision_executed_callers": 0.8876,
+     "predicted": 1139,
+     "truth": 1552,
+     "tp": 624
+    }
+   },
+   "level2": {
+    "precision": 0.4049,
+    "recall": 0.7265,
+    "f1": 0.52,
+    "precision_executed_callers": 0.6562,
+    "predicted": 3786,
+    "truth": 2110,
+    "tp": 1533,
+    "visible": {
+     "precision": 0.3943,
+     "recall": 0.962,
+     "f1": 0.5594,
+     "precision_executed_callers": 0.6433,
+     "predicted": 3786,
+     "truth": 1552,
+     "tp": 1493
+    }
+   },
+   "level3": {
+    "precision": 0.3867,
+    "recall": 0.7393,
+    "f1": 0.5078,
+    "precision_executed_callers": 0.6235,
+    "predicted": 4034,
+    "truth": 2110,
+    "tp": 1560,
+    "visible": {
+     "precision": 0.3756,
+     "recall": 0.9762,
+     "f1": 0.5424,
+     "precision_executed_callers": 0.6129,
+     "predicted": 4034,
+     "truth": 1552,
+     "tp": 1515
+    }
+   }
+  },
+  "note": "level0=name-only, 1=scope+imports, 2=+type flow, 3=+Jedi; 'visible' = observed calls that have a matching call expression in the caller"
+ },
+ "callers": {
+  "n": 100,
+  "bm25": {
+   "sym_R@1": 0.03,
+   "sym_R@5": 0.38,
+   "sym_R@10": 0.44,
+   "sym_mrr": 0.1789,
+   "file_R@1": 0.44,
+   "file_R@5": 0.69,
+   "file_R@10": 0.69,
+   "file_mrr": 0.539,
+   "file_recall": 0.6742,
+   "sym_recall": 0.3948,
+   "tokens": 1839.35,
+   "latency_ms": 2.7
+  },
+  "vector": {
+   "sym_R@1": 0.07,
+   "sym_R@5": 0.29,
+   "sym_R@10": 0.34,
+   "sym_mrr": 0.1528,
+   "file_R@1": 0.47,
+   "file_R@5": 0.78,
+   "file_R@10": 0.82,
+   "file_mrr": 0.5756,
+   "file_recall": 0.7608,
+   "sym_recall": 0.2929,
+   "tokens": 1012.86,
+   "latency_ms": 2.88
+  },
+  "hybrid": {
+   "sym_R@1": 0.05,
+   "sym_R@5": 0.35,
+   "sym_R@10": 0.4,
+   "sym_mrr": 0.1787,
+   "file_R@1": 0.43,
+   "file_R@5": 0.73,
+   "file_R@10": 0.8,
+   "file_mrr": 0.5535,
+   "file_recall": 0.7475,
+   "sym_recall": 0.3434,
+   "tokens": 1478.29,
+   "latency_ms": 5.15
+  },
+  "graph": {
+   "sym_R@1": 0.06,
+   "sym_R@5": 0.5,
+   "sym_R@10": 0.63,
+   "sym_mrr": 0.239,
+   "file_R@1": 0.44,
+   "file_R@5": 0.78,
+   "file_R@10": 0.79,
+   "file_mrr": 0.5595,
+   "file_recall": 0.7517,
+   "sym_recall": 0.5611,
+   "tokens": 1827.66,
+   "latency_ms": 9.69
+  },
+  "auto": {
+   "sym_R@1": 0.06,
+   "sym_R@5": 0.5,
+   "sym_R@10": 0.63,
+   "sym_mrr": 0.239,
+   "file_R@1": 0.44,
+   "file_R@5": 0.78,
+   "file_R@10": 0.79,
+   "file_mrr": 0.5595,
+   "file_recall": 0.7517,
+   "sym_recall": 0.5611,
+   "tokens": 1827.66,
+   "latency_ms": 9.78
+  },
+  "tool_find_callers": {
+   "precision_lower_bound": 0.449,
+   "recall": 0.536
+  }
+ }
+}

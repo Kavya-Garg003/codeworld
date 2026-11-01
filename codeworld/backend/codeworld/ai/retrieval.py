@@ -5,7 +5,9 @@ from dataclasses import dataclass, field, asdict
 
 from ..textutil import tokens
 
-MODES = ("bm25", "vector", "hybrid", "graph")
+MODES = ("bm25", "vector", "hybrid", "graph", "auto")
+RELATIONAL = {"callers", "callees", "impact", "flow", "tests"}
+PROTECT = 3
 KIND_PRIOR = {"function": 1.0, "method": 1.0, "class": 0.95, "doc": 0.9, "file": 0.8, "test": 0.75}
 
 
@@ -96,6 +98,8 @@ class Retriever:
     # -- public modes ---------------------------------------------------------------------------
     def search(self, q: str, mode: str = "graph", k: int = 8, intent: str = "explain") -> list[Hit]:
         pool = max(30, k * 4)
+        if mode == "auto":          # graph expansion helps relational questions and slightly hurts plain lookups, so route by intent
+            mode = "graph" if intent in RELATIONAL else "hybrid"
         if mode == "bm25":
             r = self.bm25(q, pool)
             return self._hits({c: s for c, s in r}, {c: ["bm25"] for c, _ in r}, k, q)
@@ -162,6 +166,9 @@ class Retriever:
                     bump(dst, w["inherits"], "base of")
             if n["kind"] == "method" and n["parent"]:
                 bump(n["parent"], w["parent"], "class of")
+        top_seeds = sorted(fused.items(), key=lambda x: -x[1])[:PROTECT]       # graph expansion must not push out the best direct matches
+        for cid, _ in top_seeds:
+            scores[cid] = fused[cid] + top * 3          # keep the hybrid order among the protected seeds
         return self._hits(scores, src, k, q, via)
 
     def context(self, hits: list[Hit], budget_chars: int = 9000) -> tuple[str, list[Hit]]:

@@ -32,6 +32,12 @@ def chunk_code_file(pr: ParseResult, src_text: str) -> list[dict]:
             code = "\n".join(lines[s.start - 1:s.end])
             out.append(dict(id=f"c:{s.id}", node_id=s.id, path=pr.path, kind=s.kind, name=s.qualname, start=s.start, end=s.end,
                             text=code[:MAX_CHARS]))
+    seen: dict[str, int] = {}
+    for ch in out:                                   # redefinitions (property setters, overloads) share a qualname: keep chunk ids unique
+        n = seen.get(ch["id"], 0)
+        seen[ch["id"]] = n + 1
+        if n:
+            ch["id"] = f"{ch['id']}#{n}"
     summary = [f"# {pr.path} ({pr.language}, {pr.loc} lines)"]
     if pr.doc:
         summary.append(pr.doc)

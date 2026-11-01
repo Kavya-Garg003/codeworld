@@ -203,7 +203,7 @@ def run_llm_agent(ctx, question, tools: ToolRegistry, trace: list, history, max_
 
 
 # ------------------------------------------------------------------------------- public API
-def ask(ctx, question: str, mode: str = "graph", agent: bool = True, history: list | None = None, k: int = 8) -> dict:
+def ask(ctx, question: str, mode: str = "auto", agent: bool = True, history: list | None = None, k: int = 8) -> dict:
     t0 = time.time()
     g = ctx.graph
     seen = Seen()

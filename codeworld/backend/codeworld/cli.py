@@ -35,7 +35,7 @@ def main(argv=None):
     sub.add_parser("repos", help="list indexed repositories")
     s = sub.add_parser("serve", help="start the API server"); s.add_argument("--host", default="127.0.0.1"); s.add_argument("--port", type=int, default=8000)
     s = sub.add_parser("index", help="index a local directory"); s.add_argument("path"); s.add_argument("--level", type=int, choices=[0, 1, 2, 3])
-    s = sub.add_parser("ask", help="ask a question"); s.add_argument("repo"); s.add_argument("question"); s.add_argument("--mode", default="graph"); s.add_argument("--no-agent", action="store_true")
+    s = sub.add_parser("ask", help="ask a question"); s.add_argument("repo"); s.add_argument("question"); s.add_argument("--mode", default="auto"); s.add_argument("--no-agent", action="store_true")
     s = sub.add_parser("impact", help="change-impact analysis"); s.add_argument("repo"); s.add_argument("target")
     s = sub.add_parser("review", help="AI-PR guardrail on a git range or a diff file")
     s.add_argument("repo"); s.add_argument("--base", default="origin/main"); s.add_argument("--head", default="HEAD"); s.add_argument("--diff-file")
@@ -44,14 +44,45 @@ def main(argv=None):
     s = sub.add_parser("health", help="health report"); s.add_argument("repo")
     s = sub.add_parser("security", help="attack-surface report"); s.add_argument("repo")
     s = sub.add_parser("mcp", help="run the MCP server (stdio)"); s.add_argument("--repo", required=True)
+    s = sub.add_parser("doctor", help="check environment, LLM and embedding provider"); s.add_argument("--list-models", action="store_true")
+    s = sub.add_parser("trace", help="run a repo's tests under a tracer and merge observed calls into the graph (EXECUTES the repo's code)")
+    s.add_argument("repo"); s.add_argument("--run", default="pytest -q"); s.add_argument("--yes", action="store_true", help="confirm you trust the code")
+    s = sub.add_parser("fix", help="propose a patch for a task (needs an LLM); validated by the guardrail, never auto-applied")
+    s.add_argument("repo"); s.add_argument("task"); s.add_argument("--out", help="write the diff here")
+    s = sub.add_parser("github", help="GitHub helpers: review-pr, issue, comment")
+    s.add_argument("action", choices=["review-pr", "issue", "comment"]); s.add_argument("repo_slug", help="owner/name"); s.add_argument("number", type=int)
+    s.add_argument("--post", action="store_true", help="post the result as a comment (needs GITHUB_TOKEN)"); s.add_argument("--file", help="markdown file for `comment`")
     s = sub.add_parser("eval", help="research evaluation harness")
-    s.add_argument("what", choices=["qa", "impact", "callgraph", "resolver-ablation"]); s.add_argument("repo")
+    s.add_argument("what", choices=["qa", "impact", "callgraph", "resolver-ablation", "autoqa", "guardrail"]); s.add_argument("repo")
     s.add_argument("--dataset"); s.add_argument("--modes", default="bm25,vector,hybrid,graph,agentic"); s.add_argument("--k", type=int, default=5)
     s.add_argument("--truth"); s.add_argument("--commits", type=int, default=300); s.add_argument("--out")
     a = ap.parse_args(argv)
     st = get_settings()
 
-    if a.cmd == "serve":
+    if a.cmd == "doctor":
+        from . import doctor
+        sys.exit(doctor.run(a))
+    elif a.cmd == "trace":
+        from .evaluation.dynamic_trace import trace
+        if not a.yes:
+            sys.exit("`trace` EXECUTES the repository's code (its tests). Re-run with --yes only for code you trust, ideally inside a container/VM.")
+        ctx = _repo(st, a.repo)
+        edges = trace(ctx.ref.src, a.run)
+        from .indexer import index_repo
+        with ctx.con() as c:
+            c.execute("INSERT OR REPLACE INTO meta VALUES ('trace_edges', ?)", (json.dumps(edges),))
+        index_repo(st, ctx.ref, force=True)
+        print(f"merged {len(edges)} runtime-observed call edges; re-indexed")
+    elif a.cmd == "fix":
+        from .agent.patch import propose
+        r = propose(_repo(st, a.repo), a.task)
+        print(r["report"])
+        if a.out and r.get("diff"):
+            Path(a.out).write_text(r["diff"]); print(f"diff written to {a.out}")
+    elif a.cmd == "github":
+        from . import github as gh
+        sys.exit(gh.main(st, a))
+    elif a.cmd == "serve":
         import uvicorn
         uvicorn.run("codeworld.api.main:app", host=a.host, port=a.port, reload=False)
     elif a.cmd == "repos":

@@ -1,0 +1,930 @@
+{
+ "repo": "requests",
+ "steps": [
+  "callers",
+  "callgraph",
+  "commits",
+  "doc2code",
+  "guardrail",
+  "impact",
+  "scale"
+ ],
+ "commit": "3c7baaa05ab4aa49cc819ce3a819d260de19c157",
+ "scale": {
+  "files": 36,
+  "loc": 12068,
+  "symbols": 440,
+  "call_edges": 1157,
+  "index_seconds": 3.44,
+  "peak_rss_mb": 149,
+  "git": true
+ },
+ "trace_edges": 372,
+ "doc2code": {
+  "n": 122,
+  "bm25": {
+   "sym_R@1": 0.8033,
+   "sym_R@5": 0.959,
+   "sym_R@10": 0.9836,
+   "sym_mrr": 0.8713,
+   "file_R@1": 0.8934,
+   "file_R@5": 0.9836,
+   "file_R@10": 0.9918,
+   "file_mrr": 0.9353,
+   "file_recall": 0.9918,
+   "sym_recall": 0.9836,
+   "tokens": 2385.2787,
+   "latency_ms": 2.5738
+  },
+  "vector": {
+   "sym_R@1": 0.6803,
+   "sym_R@5": 0.8197,
+   "sym_R@10": 0.877,
+   "sym_mrr": 0.749,
+   "file_R@1": 0.7623,
+   "file_R@5": 0.9262,
+   "file_R@10": 0.9344,
+   "file_mrr": 0.8352,
+   "file_recall": 0.9344,
+   "sym_recall": 0.877,
+   "tokens": 1309.1148,
+   "latency_ms": 2.3607
+  },
+  "hybrid": {
+   "sym_R@1": 0.7377,
+   "sym_R@5": 0.9344,
+   "sym_R@10": 0.9508,
+   "sym_mrr": 0.8198,
+   "file_R@1": 0.8607,
+   "file_R@5": 0.9754,
+   "file_R@10": 0.9754,
+   "file_mrr": 0.9119,
+   "file_recall": 0.9754,
+   "sym_recall": 0.9508,
+   "tokens": 1813.2705,
+   "latency_ms": 4.3443
+  },
+  "graph": {
+   "sym_R@1": 0.7049,
+   "sym_R@5": 0.918,
+   "sym_R@10": 0.9344,
+   "sym_mrr": 0.7947,
+   "file_R@1": 0.8279,
+   "file_R@5": 0.9672,
+   "file_R@10": 0.9672,
+   "file_mrr": 0.8896,
+   "file_recall": 0.9672,
+   "sym_recall": 0.9344,
+   "tokens": 2474.2623,
+   "latency_ms": 9.4508
+  },
+  "auto": {
+   "sym_R@1": 0.7377,
+   "sym_R@5": 0.9344,
+   "sym_R@10": 0.9508,
+   "sym_mrr": 0.8198,
+   "file_R@1": 0.8607,
+   "file_R@5": 0.9754,
+   "file_R@10": 0.9754,
+   "file_mrr": 0.9119,
+   "file_recall": 0.9754,
+   "sym_recall": 0.9508,
+   "tokens": 1813.2705,
+   "latency_ms": 4.6803
+  }
+ },
+ "callgraph": {
+  "truth_edges": 372,
+  "visible_edges": 244,
+  "levels": {
+   "level0": {
+    "precision": 0.1192,
+    "recall": 0.5538,
+    "f1": 0.1962,
+    "precision_executed_callers": 0.4824,
+    "predicted": 1728,
+    "truth": 372,
+    "tp": 206,
+    "visible": {
+     "precision": 0.1192,
+     "recall": 0.8443,
+     "f1": 0.2089,
+     "precision_executed_callers": 0.5061,
+     "predicted": 1728,
+     "truth": 244,
+     "tp": 206
+    }
+   },
+   "level1": {
+    "precision": 0.347,
+    "recall": 0.6156,
+    "f1": 0.4438,
+    "precision_executed_callers": 0.9016,
+    "predicted": 660,
+    "truth": 372,
+    "tp": 229,
+    "visible": {
+     "precision": 0.3258,
+     "recall": 0.8811,
+     "f1": 0.4757,
+     "precision_executed_callers": 0.8704,
+     "predicted": 660,
+     "truth": 244,
+     "tp": 215
+    }
+   },
+   "level2": {
+    "precision": 0.2731,
+    "recall": 0.6586,
+    "f1": 0.3861,
+    "precision_executed_callers": 0.8249,
+    "predicted": 897,
+    "truth": 372,
+    "tp": 245,
+    "visible": {
+     "precision": 0.2575,
+     "recall": 0.9467,
+     "f1": 0.4049,
+     "precision_executed_callers": 0.8105,
+     "predicted": 897,
+     "truth": 244,
+     "tp": 231
+    }
+   },
+   "level3": {
+    "precision": 0.2672,
+    "recall": 0.6694,
+    "f1": 0.3819,
+    "precision_executed_callers": 0.8218,
+    "predicted": 932,
+    "truth": 372,
+    "tp": 249,
+    "visible": {
+     "precision": 0.2521,
+     "recall": 0.9631,
+     "f1": 0.3997,
+     "precision_executed_callers": 0.8103,
+     "predicted": 932,
+     "truth": 244,
+     "tp": 235
+    }
+   }
+  },
+  "note": "level0=name-only, 1=scope+imports, 2=+type flow, 3=+Jedi; 'visible' = observed calls that have a matching call expression in the caller"
+ },
+ "callers": {
+  "n": 98,
+  "bm25": {
+   "sym_R@1": 0.0102,
+   "sym_R@5": 0.6837,
+   "sym_R@10": 0.7653,
+   "sym_mrr": 0.2945,
+   "file_R@1": 0.551,
+   "file_R@5": 0.898,
+   "file_R@10": 0.898,
+   "file_mrr": 0.7026,
+   "file_recall": 0.8724,
+   "sym_recall": 0.7228,
+   "tokens": 2046.7551,
+   "latency_ms": 2.4082
+  },
+  "vector": {
+   "sym_R@1": 0.051,
+   "sym_R@5": 0.4796,
+   "sym_R@10": 0.5816,
+   "sym_mrr": 0.2231,
+   "file_R@1": 0.4388,
+   "file_R@5": 0.8469,
+   "file_R@10": 0.8673,
+   "file_mrr": 0.6052,
+   "file_recall": 0.8197,
+   "sym_recall": 0.5187,
+   "tokens": 1184.6531,
+   "latency_ms": 2.2653
+  },
+  "hybrid": {
+   "sym_R@1": 0.0204,
+   "sym_R@5": 0.6122,
+   "sym_R@10": 0.7245,
+   "sym_mrr": 0.2924,
+   "file_R@1": 0.5,
+   "file_R@5": 0.9388,
+   "file_R@10": 0.9388,
+   "file_mrr": 0.6864,
+   "file_recall": 0.9218,
+   "sym_recall": 0.6854,
+   "tokens": 1687.2347,
+   "latency_ms": 4.1633
+  },
+  "graph": {
+   "sym_R@1": 0.0204,
+   "sym_R@5": 0.8776,
+   "sym_R@10": 0.949,
+   "sym_mrr": 0.3685,
+   "file_R@1": 0.4796,
+   "file_R@5": 0.9796,
+   "file_R@10": 0.9796,
+   "file_mrr": 0.6968,
+   "file_recall": 0.9643,
+   "sym_recall": 0.9133,
+   "tokens": 2421.2959,
+   "latency_ms": 7.1429
+  },
+  "auto": {
+   "sym_R@1": 0.0204,
+   "sym_R@5": 0.8776,
+   "sym_R@10": 0.949,
+   "sym_mrr": 0.3685,
+   "file_R@1": 0.4796,
+   "file_R@5": 0.9796,
+   "file_R@10": 0.9796,
+   "file_mrr": 0.6968,
+   "file_recall": 0.9643,
+   "sym_recall": 0.9133,
+   "tokens": 2421.2959,
+   "latency_ms": 7.4286
+  },
+  "tool_find_callers": {
+   "precision_lower_bound": 0.537,
+   "recall": 0.852
+  }
+ },
+ "impact": {
+  "commits_train": 42,
+  "commits_test": 18,
+  "pairs": 62,
+  "methods": {
+   "static": {
+    "precision@5": 0.4032,
+    "recall@5": 0.4886,
+    "precision@10": 0.3516,
+    "recall@10": 0.7382,
+    "MAP@20": 0.5139
+   },
+   "cochange": {
+    "precision@5": 0.271,
+    "recall@5": 0.1599,
+    "precision@10": 0.279,
+    "recall@10": 0.328,
+    "MAP@20": 0.3276
+   },
+   "hybrid": {
+    "precision@5": 0.4194,
+    "recall@5": 0.4079,
+    "precision@10": 0.3694,
+    "recall@10": 0.6647,
+    "MAP@20": 0.4947
+   },
+   "churn": {
+    "precision@5": 0.0839,
+    "recall@5": 0.1613,
+    "precision@10": 0.1323,
+    "recall@10": 0.3548,
+    "MAP@20": 0.2177
+   }
+  },
+  "truth_coverage_top10": {
+   "both": 0.2131979695431472,
+   "only_static": 0.3401015228426396,
+   "only_cochange": 0.22588832487309646,
+   "neither": 0.22081218274111675
+  }
+ },
+ "guardrail": {
+  "summary": {
+   "bad_member_import": {
+    "n": 15,
+    "detected": 15,
+    "recall": 1.0
+   },
+   "fake_package": {
+    "n": 15,
+    "detected": 15,
+    "recall": 1.0
+   },
+   "fake_attr_call": {
+    "n": 15,
+    "detected": 15,
+    "recall": 1.0
+   },
+   "duplicate_helper": {
+    "n": 15,
+    "detected": 15,
+    "recall": 1.0
+   },
+   "dangling_reference": {
+    "n": 6,
+    "detected": 3,
+    "recall": 0.5
+   },
+   "untested_change": {
+    "n": 4,
+    "detected": 4,
+    "recall": 1.0
+   }
+  },
+  "rows": {
+   "bad_member_import": [
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 0
+    }
+   ],
+   "fake_package": [
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 0
+    }
+   ],
+   "fake_attr_call": [
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 12
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 10
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 4
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 12
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 11
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 11
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 0
+    }
+   ],
+   "duplicate_helper": [
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 15
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 4
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 13
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 14
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 12
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 13
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 11
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 4
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 13
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 11
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 16
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 2
+    }
+   ],
+   "dangling_reference": [
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 1
+    },
+    {
+     "detected": false,
+     "severity": null,
+     "other_findings": 1
+    },
+    {
+     "detected": false,
+     "severity": null,
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 0
+    },
+    {
+     "detected": false,
+     "severity": null,
+     "other_findings": 0
+    }
+   ],
+   "untested_change": [
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 3
+    },
+    {
+     "detected": true,
+     "severity": "low",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 3
+    }
+   ]
+  }
+ },
+ "real_commits": {
+  "commits": 20,
+  "with_high": 0,
+  "with_medium_or_high": 7,
+  "verdicts": {
+   "warn": 7,
+   "pass": 13
+  },
+  "by_category": {
+   "import-cycle/medium": 6,
+   "complexity/low": 6,
+   "untested-change/medium": 1,
+   "hallucinated-import/medium": 1,
+   "untested-change/low": 1
+  },
+  "high_findings": [],
+  "rows": [
+   {
+    "sha": "6f66281a1d",
+    "files": 3,
+    "verdict": "warn",
+    "counts": {
+     "high": 0,
+     "medium": 1,
+     "low": 2
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "6f205ff422",
+    "files": 2,
+    "verdict": "pass",
+    "counts": {
+     "high": 0,
+     "medium": 0,
+     "low": 1
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "1190afd14f",
+    "files": 1,
+    "verdict": "pass",
+    "counts": {
+     "high": 0,
+     "medium": 0,
+     "low": 0
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "e50e594529",
+    "files": 4,
+    "verdict": "warn",
+    "counts": {
+     "high": 0,
+     "medium": 2,
+     "low": 1
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "cd90742ed9",
+    "files": 1,
+    "verdict": "pass",
+    "counts": {
+     "high": 0,
+     "medium": 0,
+     "low": 0
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "6e83187b8f",
+    "files": 1,
+    "verdict": "pass",
+    "counts": {
+     "high": 0,
+     "medium": 0,
+     "low": 0
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "84d10f0be8",
+    "files": 2,
+    "verdict": "warn",
+    "counts": {
+     "high": 0,
+     "medium": 1,
+     "low": 0
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "b7b549b545",
+    "files": 1,
+    "verdict": "pass",
+    "counts": {
+     "high": 0,
+     "medium": 0,
+     "low": 0
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "e511bc7277",
+    "files": 3,
+    "verdict": "warn",
+    "counts": {
+     "high": 0,
+     "medium": 1,
+     "low": 0
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "5691f59613",
+    "files": 1,
+    "verdict": "warn",
+    "counts": {
+     "high": 0,
+     "medium": 1,
+     "low": 0
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "2144213c30",
+    "files": 1,
+    "verdict": "pass",
+    "counts": {
+     "high": 0,
+     "medium": 0,
+     "low": 0
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "6404f345e5",
+    "files": 2,
+    "verdict": "pass",
+    "counts": {
+     "high": 0,
+     "medium": 0,
+     "low": 1
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "0b401c76b6",
+    "files": 1,
+    "verdict": "pass",
+    "counts": {
+     "high": 0,
+     "medium": 0,
+     "low": 0
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "86b378d3f6",
+    "files": 1,
+    "verdict": "pass",
+    "counts": {
+     "high": 0,
+     "medium": 0,
+     "low": 0
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "a4f9a5999b",
+    "files": 2,
+    "verdict": "pass",
+    "counts": {
+     "high": 0,
+     "medium": 0,
+     "low": 1
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "3816cfa1ab",
+    "files": 2,
+    "verdict": "warn",
+    "counts": {
+     "high": 0,
+     "medium": 1,
+     "low": 1
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "b684dcb9bb",
+    "files": 2,
+    "verdict": "warn",
+    "counts": {
+     "high": 0,
+     "medium": 1,
+     "low": 0
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "25340ebad0",
+    "files": 1,
+    "verdict": "pass",
+    "counts": {
+     "high": 0,
+     "medium": 0,
+     "low": 0
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "fd628095d7",
+    "files": 2,
+    "verdict": "pass",
+    "counts": {
+     "high": 0,
+     "medium": 0,
+     "low": 0
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "f7822f7c41",
+    "files": 1,
+    "verdict": "pass",
+    "counts": {
+     "high": 0,
+     "medium": 0,
+     "low": 0
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   }
+  ]
+ }
+}

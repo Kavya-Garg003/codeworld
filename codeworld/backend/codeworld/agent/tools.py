@@ -40,7 +40,7 @@ class ToolRegistry:
         self.ctx, self.seen = ctx, seen or Seen()
         self.specs = [
             ("search_code", "Hybrid (BM25 + vector + graph) search for code relevant to a natural-language query.",
-             {"query": "string", "k": "integer (default 8)", "mode": "bm25|vector|hybrid|graph (default graph)"}, ["query"]),
+             {"query": "string", "k": "integer (default 8)", "mode": "bm25|vector|hybrid|graph|auto (default auto)"}, ["query"]),
             ("find_symbol", "Find functions/classes/files by (partial) name.", {"name": "string"}, ["name"]),
             ("get_symbol", "Full details + source code + callers/callees/tests of one symbol.", {"symbol": "string"}, ["symbol"]),
             ("get_file", "Read lines of a source file.", {"path": "string", "start": "integer", "end": "integer"}, ["path"]),
@@ -109,8 +109,8 @@ class ToolRegistry:
         self.seen.add(n["path"], n["start"], n["end"])
 
     # -- tools --------------------------------------------------------------------------------------------
-    def t_search_code(self, query: str, k: int = 8, mode: str = "graph") -> dict:
-        hits = self.ctx.retriever.search(query, mode if mode in ("bm25", "vector", "hybrid", "graph") else "graph", int(k), classify(query))
+    def t_search_code(self, query: str, k: int = 8, mode: str = "auto") -> dict:
+        hits = self.ctx.retriever.search(query, mode if mode in ("bm25", "vector", "hybrid", "graph", "auto") else "auto", int(k), classify(query))
         for h in hits:
             self.seen.add(h.path, h.start, h.end)
         return {"hits": [h.to_dict(300) for h in hits]}

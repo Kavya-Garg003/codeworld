@@ -39,7 +39,22 @@ def evaluate(ctx, truth_path: str, levels=(0, 1, 2, 3), min_conf: float = 0.0) -
         parsed = {r["path"]: ParseResult.from_json(r["json"]) for r in con.execute("SELECT path, json FROM parsed")}
     # restrict truth to files we parsed (the tracer may see third-party frames)
     truth = {(a, b) for a, b in truth if a.split("::")[0] in parsed and b.split("::")[0] in parsed}
+    # Dynamic traces also contain *implicit* calls (decorators, properties, dunder protocols, callbacks invoked by the framework).
+    # A static analyser that follows call syntax cannot be expected to find those, so we also report the "syntactically visible" subset.
+    names = {}
+    for pr in parsed.values():
+        for c in pr.calls:
+            names.setdefault(c.caller, set()).add(c.text.split(".")[-1])
+    visible = set()
+    for a, b in truth:
+        q = b.split("::", 1)[1].split(".")
+        cn, cls = q[-1], (q[-2] if len(q) > 1 else None)
+        ns = names.get(f"sym:{a}", set())
+        if cn in ns or (cn == "__init__" and cls in ns):
+            visible.add((a, b))
     out = {}
     for lv in levels:
-        out[f"level{lv}"] = prf(predicted_edges(parsed, lv, ctx.ref.src, min_conf), truth)
-    return {"truth_edges": len(truth), "levels": out, "note": "level0=name-only, 1=scope+imports, 2=+type flow, 3=+Jedi"}
+        pred = predicted_edges(parsed, lv, ctx.ref.src, min_conf)
+        out[f"level{lv}"] = {**prf(pred, truth), "visible": prf(pred, visible)}
+    return {"truth_edges": len(truth), "visible_edges": len(visible), "levels": out,
+            "note": "level0=name-only, 1=scope+imports, 2=+type flow, 3=+Jedi; 'visible' = observed calls that have a matching call expression in the caller"}

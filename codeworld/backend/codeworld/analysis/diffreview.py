@@ -4,6 +4,7 @@ import re
 import subprocess
 
 from ..parser import ParseResult
+from ..parser.common import JS_EFFECTS, PY_EFFECTS, detect_effects
 from . import gitmining, health, importcheck
 from .duplicates import similar_to
 from .impact import impact
@@ -33,7 +34,7 @@ def parse_unified_diff(text: str) -> dict[str, dict]:
             if m:
                 old_ln, new_ln = int(m.group(1)), int(m.group(2))
         elif cur and line.startswith("+") and not line.startswith("+++"):
-            files[cur]["added"].add(new_ln); files[cur]["added_text"].append(line[1:]); new_ln += 1
+            files[cur]["added"].add(new_ln); files[cur]["added_text"].append(line[1:]); files[cur].setdefault("added_map", {})[new_ln] = line[1:]; new_ln += 1
         elif cur and line.startswith("-") and not line.startswith("---"):
             files[cur]["removed"].add(old_ln); files[cur]["removed_text"].append(line[1:]); old_ln += 1
         elif cur and not line.startswith("\\"):
@@ -112,11 +113,19 @@ def review_diff(ctx, diff_text: str) -> dict:
     for s in changed:
         n = g.node(s)
         eff = [e for e in (n["props"].get("effects") or []) if e in SINKS and SEV[SINKS[e][0]] >= 2]
+        added_here = [t for ln, t in (code_files.get(n["path"], {}).get("added_map", {}) or {}).items() if n["start"] <= ln <= n["end"]]
+        introduced = set()
+        for t in added_here:                        # sinks only count as NEW when an added line itself performs the call
+            for callee in re.findall(r"[\w.]+(?=\()", t):
+                introduced.update(detect_effects(callee, PY_EFFECTS + JS_EFFECTS))
         for e in eff:
             reach = [a["api"] for a in surf.values() if any(r["symbol"] == n["qualname"] for r in a["risks"])]
-            sev = "high" if SEV[SINKS[e][0]] >= 3 else "medium"
-            findings.append(_finding(sev, "security-sink", f"Changed code uses `{e}` sink: {n['qualname']}",
-                                     SINKS[e][1] + (f". Reachable from: {', '.join(reach[:4])}" if reach else ""), n["path"], n["start"], n["qualname"]))
+            new = e in introduced
+            sev = ("high" if SEV[SINKS[e][0]] >= 3 else "medium") if new else "low"
+            title = f"{'New' if new else 'Existing'} `{e}` sink in changed function: {n['qualname']}"
+            findings.append(_finding(sev, "security-sink", title,
+                                     SINKS[e][1] + ("" if new else " (already present before this change; touched code only)") + (f". Reachable from: {', '.join(reach[:4])}" if reach else ""),
+                                     n["path"], n["start"], n["qualname"]))
     # 7 ---- removed symbols that are still referenced ---------------------------------------------------------------
     still_defined = {n["name"] for n in g.nodes.values() if n["kind"] in ("function", "method", "class")}
     removed_defs: dict[str, str] = {}

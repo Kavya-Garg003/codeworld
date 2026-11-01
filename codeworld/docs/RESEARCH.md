@@ -1,6 +1,6 @@
 # Research guide: turning CodeWorld into a paper
 
-The harness (`codeworld eval ...`) and the instrumentation are built; **the experiments and numbers are yours to produce.** Nothing in this repository claims a benchmark result.
+A one-command suite (`python -m codeworld.evaluation.suite`) and the per-experiment harness (`codeworld eval ...`) are built, and a **pilot** over 5 repositories is included in `docs/RESULTS_PILOT.md` / `results/`. Treat the pilot as hypotheses (offline hash embedder, no LLM, tuned on the same repos); the LLM and CodeRankEmbed experiments and the final numbers are yours to produce.
 
 ## 1. Positioning (be honest about novelty)
 
@@ -33,6 +33,9 @@ Pick **C1 + C2 (+ C3)** for a solid empirical paper; add C4 or C5 if time allows
 - **RQ4 (C4)** What fraction of seeded AI-style defects (invented imports/members, duplicate helpers, layer violations) does the guardrail catch, and at what false-positive rate on real PRs?
 - **RQ5 (C5)** Does CodeWorld reduce time-to-correct-answer on onboarding tasks?
 
+## 2b. What the pilot already suggests
+Resolver fidelity matters (visible-call recall 0.40-0.88 at level 1 vs 0.74-0.96 at level 2, name-only precision 0.25-0.57); graph expansion helps caller questions (+20 points) but costs lookups ≈3 MRR points, fixed by intent routing (`auto`); static impact alone does not beat co-change/churn baselines but the hybrid wins or ties on 4/5 repos; guardrail seeded recall ≈1.0 but real-commit medium-severity noise is high. Details and caveats: `docs/RESULTS_PILOT.md`.
+
 ## 3. Data you need to build
 
 1. **Repositories (8-15)** across sizes; include *recent or obscure* ones to limit training-data contamination (famous repos are memorised by LLMs - a major threat). Mix libraries and applications; Python plus a few JS/TS. Clone **with history** (`CODEWORLD_CLONE_DEPTH=2000`).
@@ -47,6 +50,9 @@ Pick **C1 + C2 (+ C3)** for a solid empirical paper; add C4 or C5 if time allows
 ## 4. Experiments - exact commands
 
 ```bash
+# everything at once (clones repos, traces their tests, runs all experiments, writes report.md + figures)
+python -m codeworld.evaluation.suite --repos all --out results/my_run --work suite_work
+# or step by step:
 # RQ1: retrieval + answer quality; run once per model (set CODEWORLD_LLM_* between runs; "none" = offline planner)
 codeworld eval qa REPO --dataset qa_repoA.json --modes bm25,vector,hybrid,graph,agentic --k 5 --out qa_repoA_<model>.json
 # RQ2: resolver ablation (re-indexes at levels 0..3, restores the default afterwards)

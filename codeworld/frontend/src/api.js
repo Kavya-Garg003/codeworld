@@ -1,7 +1,15 @@
 const BASE = import.meta.env.VITE_API_URL || ''
 
-async function req(path, opts = {}) {
-  const res = await fetch(BASE + path, opts)
+const tok = () => localStorage.getItem('cw_token') || ''
+
+async function req(path, opts = {}, retry = true) {
+  const headers = { ...(opts.headers || {}) }
+  if (tok()) headers['Authorization'] = 'Bearer ' + tok()
+  const res = await fetch(BASE + path, { ...opts, headers })
+  if (res.status === 401 && retry) {                       // server started with CODEWORLD_API_TOKEN
+    const t = window.prompt('This CodeWorld server requires an API token:')
+    if (t) { localStorage.setItem('cw_token', t.trim()); return req(path, opts, false) }
+  }
   if (!res.ok) {
     let msg = res.statusText
     try { const j = await res.json(); msg = j.detail || JSON.stringify(j) } catch {}

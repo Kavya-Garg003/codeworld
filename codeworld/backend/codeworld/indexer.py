@@ -56,7 +56,8 @@ def index_repo(settings: Settings, ref: RepoRef, progress=None, force: bool = Fa
         # ---- graph ---------------------------------------------------------------------------------------
         progress("building graph", 42)
         parsed = {r["path"]: ParseResult.from_json(r["json"]) for r in con.execute("SELECT path, json FROM parsed")}
-        gb = GraphBuilder(parsed, level=level, root=ref.src, repo_name=ref.name)
+        tr = con.execute("SELECT value FROM meta WHERE key='trace_edges'").fetchone()
+        gb = GraphBuilder(parsed, level=level, root=ref.src, repo_name=ref.name, trace_edges=json.loads(tr["value"]) if tr else None)
         nodes, edges, rstats = gb.build()
         con.execute("DELETE FROM nodes"); con.execute("DELETE FROM edges")
         con.executemany("INSERT INTO nodes VALUES (?,?,?,?,?,?,?,?,?)", [
@@ -69,6 +70,7 @@ def index_repo(settings: Settings, ref: RepoRef, progress=None, force: bool = Fa
             h = sha1(embed_text(c))
             cur = con.execute("INSERT OR REPLACE INTO chunks(id,node_id,path,kind,name,start,end,text,text_hash) VALUES (?,?,?,?,?,?,?,?,?)",
                               (c["id"], c["node_id"], c["path"], c["kind"], c["name"], c["start"], c["end"], c["text"], h))
+            con.execute("DELETE FROM chunks_fts WHERE rowid=?", (cur.lastrowid,))      # heal any stale row left by a replaced chunk
             con.execute("INSERT INTO chunks_fts(rowid,name,path,body,chunk_id) VALUES (?,?,?,?,?)",
                         (cur.lastrowid, fts_text(c["name"]), fts_text(c["path"]), fts_text(c["text"][:8000]), c["id"]))
         # ---- embeddings ------------------------------------------------------------------------------------

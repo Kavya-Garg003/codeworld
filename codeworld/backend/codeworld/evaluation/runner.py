@@ -30,6 +30,14 @@ def run(settings, a):
         if not a.truth:
             sys.exit("--truth <edges.json> is required (see codeworld.evaluation.dynamic_trace)")
         _emit(callgraph_eval.evaluate(ctx, a.truth), a.out)
+    elif a.what == "autoqa":
+        from . import autoqa
+        ds = autoqa.doc2code(ctx, 200)
+        res = qa_eval.evaluate(ctx, ds, [m.strip() for m in a.modes.split(",") if m.strip() != "agentic"], a.k)
+        _emit(res, a.out, qa_eval.to_markdown(res))
+    elif a.what == "guardrail":
+        from . import guardrail_eval
+        _emit({"seeded": guardrail_eval.seeded(ctx, 20)["summary"], "real_commits": {k: v for k, v in guardrail_eval.real_commits(ctx, 25).items() if k != "rows"}}, a.out)
     elif a.what == "resolver-ablation":
         from ..ingest import repo_ref
         ref = ctx.ref

@@ -66,6 +66,7 @@ class ParseResult:
     effects: list[str] = field(default_factory=list)       # module-level effects
     module_types: dict[str, str] = field(default_factory=dict)   # module-level `x = Foo()` hints
     module_vars: list[str] = field(default_factory=list)         # module-level variables/constants (for import checking)
+    all_names: list[str] = field(default_factory=list)           # names listed in __all__ (public API)
     error: str | None = None
 
     def to_json(self) -> str:

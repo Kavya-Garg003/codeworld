@@ -302,5 +302,9 @@ def parse_python(path: str, src: bytes) -> ParseResult:
             res.error = "syntax errors present (partial parse)"
     except Exception as e:          # never let one bad file stop indexing
         res.error = f"parse failure: {e}"
-    res.todos = scan_todos(src.decode("utf8", "replace"))
+    text = src.decode("utf8", "replace")
+    m = re.search(r"^__all__\s*(?:\+?=)\s*[\[(]([^\])]*)[\])]", text, re.M | re.S)
+    if m:
+        res.all_names = re.findall(r"[\"']([A-Za-z_]\w*)[\"']", m.group(1))
+    res.todos = scan_todos(text)
     return res

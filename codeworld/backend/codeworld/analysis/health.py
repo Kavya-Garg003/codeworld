@@ -122,10 +122,15 @@ def dead_code(ctx, limit: int = 60) -> list[dict]:
                 continue
         cands.append(n)
     out = []
+    pub_note = "exported as public API (__init__/__all__) - unused inside this repo but probably used by external code"
     with ctx.con() as con:
         for n in cands[:300]:
             hits = con.execute("SELECT COUNT(*) c FROM chunks_fts WHERE chunks_fts MATCH ?", (f'"{n["name"].lower()}"',)).fetchone()["c"]
             public = not n["name"].startswith("_")
+            if n["props"].get("public_api"):
+                out.append({"id": n["id"], "name": n["qualname"], "path": n["path"], "line": n["start"], "loc": n["props"].get("loc", 0),
+                            "confidence": "low", "note": pub_note})
+                continue
             conf = "high" if hits <= 2 and (is_app or not public) else "medium"
             note = "no callers, not an endpoint"
             if hits > 2:
@@ -134,7 +139,7 @@ def dead_code(ctx, limit: int = 60) -> list[dict]:
                 note += "; public name in a library - may be used by external code"
             out.append({"id": n["id"], "name": n["qualname"], "path": n["path"], "line": n["start"], "loc": n["props"].get("loc", 0),
                         "confidence": conf, "note": note})
-    out.sort(key=lambda x: (x["confidence"] != "high", -x["loc"]))
+    out.sort(key=lambda x: ({"high": 0, "medium": 1, "low": 2}[x["confidence"]], -x["loc"]))
     return out[:limit]
 
 

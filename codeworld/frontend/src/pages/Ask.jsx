@@ -4,7 +4,7 @@ import { api } from '../api.js'
 import { Badge, Spinner, useFetch, useRepo } from '../components/common.jsx'
 import Markdown from '../components/Markdown.jsx'
 
-const MODES = [['graph', 'Graph-RAG (BM25 + vectors + call graph)'], ['hybrid', 'Hybrid (BM25 + vectors)'], ['vector', 'Vectors only'], ['bm25', 'BM25 only']]
+const MODES = [['auto', 'Auto (graph for relational questions)'], ['graph', 'Graph-RAG always (BM25 + vectors + call graph)'], ['hybrid', 'Hybrid (BM25 + vectors)'], ['vector', 'Vectors only'], ['bm25', 'BM25 only']]
 
 export default function Ask() {
   const { id, repo } = useRepo()
@@ -12,7 +12,7 @@ export default function Ask() {
   const [sp] = useSearchParams()
   const [msgs, setMsgs] = useState([])
   const [text, setText] = useState(sp.get('q') || '')
-  const [mode, setMode] = useState('graph')
+  const [mode, setMode] = useState('auto')
   const [agent, setAgent] = useState(true)
   const [busy, setBusy] = useState(false)
   const end = useRef()

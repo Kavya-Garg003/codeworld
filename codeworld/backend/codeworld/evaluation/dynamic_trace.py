@@ -20,6 +20,9 @@ def trace(root: Path, run: str) -> list[list[str]]:
 
     def rel(fn: str) -> str | None:
         if fn not in cache:
+            if fn.startswith("<"):                       # <frozen os>, <string>, ... resolve under cwd otherwise
+                cache[fn] = None
+                return None
             try:
                 p = Path(fn).resolve()
                 cache[fn] = p.relative_to(root).as_posix() if root in p.parents and "site-packages" not in p.parts else None

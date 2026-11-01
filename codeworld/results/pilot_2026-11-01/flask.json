@@ -1,0 +1,932 @@
+{
+ "repo": "flask",
+ "steps": [
+  "callers",
+  "callgraph",
+  "commits",
+  "doc2code",
+  "guardrail",
+  "impact",
+  "scale"
+ ],
+ "commit": "49943b5a94413a530761350f04e896f76e8d620e",
+ "scale": {
+  "files": 80,
+  "loc": 18472,
+  "symbols": 1175,
+  "call_edges": 1557,
+  "index_seconds": 10.81,
+  "peak_rss_mb": 117,
+  "git": true
+ },
+ "trace_edges": 1570,
+ "doc2code": {
+  "n": 200,
+  "bm25": {
+   "sym_R@1": 0.72,
+   "sym_R@5": 0.915,
+   "sym_R@10": 0.965,
+   "sym_mrr": 0.8025,
+   "file_R@1": 0.825,
+   "file_R@5": 0.97,
+   "file_R@10": 0.985,
+   "file_mrr": 0.8858,
+   "file_recall": 0.985,
+   "sym_recall": 0.965,
+   "tokens": 2897.25,
+   "latency_ms": 5.465
+  },
+  "vector": {
+   "sym_R@1": 0.635,
+   "sym_R@5": 0.805,
+   "sym_R@10": 0.88,
+   "sym_mrr": 0.7101,
+   "file_R@1": 0.74,
+   "file_R@5": 0.905,
+   "file_R@10": 0.91,
+   "file_mrr": 0.8069,
+   "file_recall": 0.91,
+   "sym_recall": 0.88,
+   "tokens": 1271.11,
+   "latency_ms": 5.065
+  },
+  "hybrid": {
+   "sym_R@1": 0.66,
+   "sym_R@5": 0.875,
+   "sym_R@10": 0.95,
+   "sym_mrr": 0.7558,
+   "file_R@1": 0.795,
+   "file_R@5": 0.945,
+   "file_R@10": 0.97,
+   "file_mrr": 0.8632,
+   "file_recall": 0.97,
+   "sym_recall": 0.95,
+   "tokens": 2181.77,
+   "latency_ms": 8.745
+  },
+  "graph": {
+   "sym_R@1": 0.6,
+   "sym_R@5": 0.865,
+   "sym_R@10": 0.91,
+   "sym_mrr": 0.7147,
+   "file_R@1": 0.745,
+   "file_R@5": 0.915,
+   "file_R@10": 0.94,
+   "file_mrr": 0.827,
+   "file_recall": 0.94,
+   "sym_recall": 0.91,
+   "tokens": 2147.965,
+   "latency_ms": 20.17
+  },
+  "auto": {
+   "sym_R@1": 0.66,
+   "sym_R@5": 0.875,
+   "sym_R@10": 0.95,
+   "sym_mrr": 0.755,
+   "file_R@1": 0.795,
+   "file_R@5": 0.945,
+   "file_R@10": 0.97,
+   "file_mrr": 0.8623,
+   "file_recall": 0.97,
+   "sym_recall": 0.95,
+   "tokens": 2174.235,
+   "latency_ms": 9.245
+  }
+ },
+ "callgraph": {
+  "truth_edges": 1555,
+  "visible_edges": 477,
+  "levels": {
+   "level0": {
+    "precision": 0.0903,
+    "recall": 0.2322,
+    "f1": 0.13,
+    "precision_executed_callers": 0.1719,
+    "predicted": 3998,
+    "truth": 1555,
+    "tp": 361,
+    "visible": {
+     "precision": 0.0903,
+     "recall": 0.7568,
+     "f1": 0.1613,
+     "precision_executed_callers": 0.2548,
+     "predicted": 3998,
+     "truth": 477,
+     "tp": 361
+    }
+   },
+   "level1": {
+    "precision": 0.3947,
+    "recall": 0.2013,
+    "f1": 0.2666,
+    "precision_executed_callers": 0.6617,
+    "predicted": 793,
+    "truth": 1555,
+    "tp": 313,
+    "visible": {
+     "precision": 0.3947,
+     "recall": 0.6562,
+     "f1": 0.4929,
+     "precision_executed_callers": 0.8067,
+     "predicted": 793,
+     "truth": 477,
+     "tp": 313
+    }
+   },
+   "level2": {
+    "precision": 0.3178,
+    "recall": 0.272,
+    "f1": 0.2931,
+    "precision_executed_callers": 0.5648,
+    "predicted": 1331,
+    "truth": 1555,
+    "tp": 423,
+    "visible": {
+     "precision": 0.3178,
+     "recall": 0.8868,
+     "f1": 0.4679,
+     "precision_executed_callers": 0.6609,
+     "predicted": 1331,
+     "truth": 477,
+     "tp": 423
+    }
+   },
+   "level3": {
+    "precision": 0.3181,
+    "recall": 0.2875,
+    "f1": 0.302,
+    "precision_executed_callers": 0.5574,
+    "predicted": 1405,
+    "truth": 1555,
+    "tp": 447,
+    "visible": {
+     "precision": 0.3153,
+     "recall": 0.9287,
+     "f1": 0.4708,
+     "precision_executed_callers": 0.6448,
+     "predicted": 1405,
+     "truth": 477,
+     "tp": 443
+    }
+   }
+  },
+  "note": "level0=name-only, 1=scope+imports, 2=+type flow, 3=+Jedi; 'visible' = observed calls that have a matching call expression in the caller"
+ },
+ "callers": {
+  "n": 100,
+  "bm25": {
+   "sym_R@1": 0.04,
+   "sym_R@5": 0.4,
+   "sym_R@10": 0.49,
+   "sym_mrr": 0.2108,
+   "file_R@1": 0.42,
+   "file_R@5": 0.78,
+   "file_R@10": 0.79,
+   "file_mrr": 0.571,
+   "file_recall": 0.7573,
+   "sym_recall": 0.4507,
+   "tokens": 3085.35,
+   "latency_ms": 3.66
+  },
+  "vector": {
+   "sym_R@1": 0.04,
+   "sym_R@5": 0.29,
+   "sym_R@10": 0.37,
+   "sym_mrr": 0.1592,
+   "file_R@1": 0.38,
+   "file_R@5": 0.75,
+   "file_R@10": 0.78,
+   "file_mrr": 0.523,
+   "file_recall": 0.7607,
+   "sym_recall": 0.3327,
+   "tokens": 1687.9,
+   "latency_ms": 3.2
+  },
+  "hybrid": {
+   "sym_R@1": 0.04,
+   "sym_R@5": 0.36,
+   "sym_R@10": 0.42,
+   "sym_mrr": 0.1839,
+   "file_R@1": 0.41,
+   "file_R@5": 0.86,
+   "file_R@10": 0.86,
+   "file_mrr": 0.5685,
+   "file_recall": 0.834,
+   "sym_recall": 0.398,
+   "tokens": 2643.16,
+   "latency_ms": 5.8
+  },
+  "graph": {
+   "sym_R@1": 0.04,
+   "sym_R@5": 0.53,
+   "sym_R@10": 0.57,
+   "sym_mrr": 0.2246,
+   "file_R@1": 0.41,
+   "file_R@5": 0.89,
+   "file_R@10": 0.9,
+   "file_mrr": 0.5918,
+   "file_recall": 0.864,
+   "sym_recall": 0.5323,
+   "tokens": 2850.4,
+   "latency_ms": 11.61
+  },
+  "auto": {
+   "sym_R@1": 0.04,
+   "sym_R@5": 0.53,
+   "sym_R@10": 0.57,
+   "sym_mrr": 0.2246,
+   "file_R@1": 0.41,
+   "file_R@5": 0.89,
+   "file_R@10": 0.9,
+   "file_mrr": 0.5918,
+   "file_recall": 0.864,
+   "sym_recall": 0.5323,
+   "tokens": 2850.4,
+   "latency_ms": 11.81
+  },
+  "tool_find_callers": {
+   "precision_lower_bound": 0.431,
+   "recall": 0.488
+  }
+ },
+ "impact": {
+  "commits_train": 185,
+  "commits_test": 80,
+  "pairs": 338,
+  "methods": {
+   "static": {
+    "precision@5": 0.2308,
+    "recall@5": 0.2567,
+    "precision@10": 0.1893,
+    "recall@10": 0.3551,
+    "MAP@20": 0.2217
+   },
+   "cochange": {
+    "precision@5": 0.2935,
+    "recall@5": 0.2653,
+    "precision@10": 0.2358,
+    "recall@10": 0.3976,
+    "MAP@20": 0.3029
+   },
+   "hybrid": {
+    "precision@5": 0.3071,
+    "recall@5": 0.3163,
+    "precision@10": 0.2527,
+    "recall@10": 0.4515,
+    "MAP@20": 0.324
+   },
+   "churn": {
+    "precision@5": 0.3095,
+    "recall@5": 0.2966,
+    "precision@10": 0.226,
+    "recall@10": 0.431,
+    "MAP@20": 0.3016
+   }
+  },
+  "truth_coverage_top10": {
+   "both": 0.11273666092943202,
+   "only_static": 0.16265060240963855,
+   "only_cochange": 0.2302065404475043,
+   "neither": 0.49440619621342513
+  }
+ },
+ "guardrail": {
+  "summary": {
+   "bad_member_import": {
+    "n": 15,
+    "detected": 15,
+    "recall": 1.0
+   },
+   "fake_package": {
+    "n": 15,
+    "detected": 15,
+    "recall": 1.0
+   },
+   "fake_attr_call": {
+    "n": 15,
+    "detected": 15,
+    "recall": 1.0
+   },
+   "duplicate_helper": {
+    "n": 15,
+    "detected": 15,
+    "recall": 1.0
+   },
+   "dangling_reference": {
+    "n": 2,
+    "detected": 2,
+    "recall": 1.0
+   },
+   "untested_change": {
+    "n": 8,
+    "detected": 8,
+    "recall": 1.0
+   }
+  },
+  "rows": {
+   "bad_member_import": [
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 1
+    }
+   ],
+   "fake_package": [
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 1
+    }
+   ],
+   "fake_attr_call": [
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 2
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 3
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 2
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 2
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 2
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 3
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 2
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 3
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 2
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 1
+    }
+   ],
+   "duplicate_helper": [
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 3
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 5
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 2
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 6
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 2
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 3
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 5
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 5
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 4
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 4
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 4
+    }
+   ],
+   "dangling_reference": [
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 1
+    },
+    {
+     "detected": true,
+     "severity": "high",
+     "other_findings": 0
+    }
+   ],
+   "untested_change": [
+    {
+     "detected": true,
+     "severity": "low",
+     "other_findings": 2
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 0
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 5
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 4
+    },
+    {
+     "detected": true,
+     "severity": "low",
+     "other_findings": 3
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 2
+    },
+    {
+     "detected": true,
+     "severity": "low",
+     "other_findings": 4
+    },
+    {
+     "detected": true,
+     "severity": "medium",
+     "other_findings": 3
+    }
+   ]
+  }
+ },
+ "real_commits": {
+  "commits": 20,
+  "with_high": 0,
+  "with_medium_or_high": 12,
+  "verdicts": {
+   "warn": 12,
+   "pass": 8
+  },
+  "by_category": {
+   "untested-change/low": 16,
+   "untested-change/medium": 11,
+   "import-cycle/medium": 11,
+   "blast-radius/medium": 3,
+   "duplicate-logic/medium": 3,
+   "complexity/low": 2,
+   "hallucinated-import/medium": 1
+  },
+  "high_findings": [],
+  "rows": [
+   {
+    "sha": "bfc8f98387",
+    "files": 1,
+    "verdict": "warn",
+    "counts": {
+     "high": 0,
+     "medium": 8,
+     "low": 7
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "f2ef7a553e",
+    "files": 3,
+    "verdict": "warn",
+    "counts": {
+     "high": 0,
+     "medium": 2,
+     "low": 1
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "d086db856b",
+    "files": 1,
+    "verdict": "pass",
+    "counts": {
+     "high": 0,
+     "medium": 0,
+     "low": 0
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "329c32b916",
+    "files": 2,
+    "verdict": "warn",
+    "counts": {
+     "high": 0,
+     "medium": 2,
+     "low": 0
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "7689f98403",
+    "files": 7,
+    "verdict": "warn",
+    "counts": {
+     "high": 0,
+     "medium": 1,
+     "low": 2
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "d73fa1cdcb",
+    "files": 1,
+    "verdict": "warn",
+    "counts": {
+     "high": 0,
+     "medium": 1,
+     "low": 0
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "d318b68347",
+    "files": 1,
+    "verdict": "pass",
+    "counts": {
+     "high": 0,
+     "medium": 0,
+     "low": 0
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "2a8a38b051",
+    "files": 1,
+    "verdict": "pass",
+    "counts": {
+     "high": 0,
+     "medium": 0,
+     "low": 0
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "89992954ec",
+    "files": 2,
+    "verdict": "warn",
+    "counts": {
+     "high": 0,
+     "medium": 3,
+     "low": 1
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "7203feabf7",
+    "files": 2,
+    "verdict": "warn",
+    "counts": {
+     "high": 0,
+     "medium": 2,
+     "low": 0
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "de8429ffda",
+    "files": 2,
+    "verdict": "pass",
+    "counts": {
+     "high": 0,
+     "medium": 0,
+     "low": 0
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "81798b406f",
+    "files": 1,
+    "verdict": "warn",
+    "counts": {
+     "high": 0,
+     "medium": 3,
+     "low": 1
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "8b4fd5d186",
+    "files": 2,
+    "verdict": "pass",
+    "counts": {
+     "high": 0,
+     "medium": 0,
+     "low": 0
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "ff6fa22f4d",
+    "files": 2,
+    "verdict": "warn",
+    "counts": {
+     "high": 0,
+     "medium": 2,
+     "low": 1
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "5ce121dd84",
+    "files": 2,
+    "verdict": "pass",
+    "counts": {
+     "high": 0,
+     "medium": 0,
+     "low": 0
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "8285adf5a4",
+    "files": 2,
+    "verdict": "warn",
+    "counts": {
+     "high": 0,
+     "medium": 2,
+     "low": 1
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "36e4a824f3",
+    "files": 1,
+    "verdict": "warn",
+    "counts": {
+     "high": 0,
+     "medium": 1,
+     "low": 0
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "954f5684e4",
+    "files": 1,
+    "verdict": "warn",
+    "counts": {
+     "high": 0,
+     "medium": 2,
+     "low": 1
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "9368fb3f3c",
+    "files": 1,
+    "verdict": "pass",
+    "counts": {
+     "high": 0,
+     "medium": 0,
+     "low": 1
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   },
+   {
+    "sha": "06ea505ce2",
+    "files": 2,
+    "verdict": "pass",
+    "counts": {
+     "high": 0,
+     "medium": 0,
+     "low": 2
+    },
+    "note": "Patch applied to a scratch copy of the indexed snapshot and "
+   }
+  ]
+ }
+}

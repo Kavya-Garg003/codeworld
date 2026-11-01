@@ -13,7 +13,7 @@ import time
 from ..agent.answer import ask
 from ..ai.intent import classify
 
-RETRIEVAL_MODES = ("bm25", "vector", "hybrid", "graph")
+RETRIEVAL_MODES = ("bm25", "vector", "hybrid", "graph", "auto")
 
 
 def _recall(gold: list[str], got: list[str], k: int, suffix: bool = False) -> float | None:
@@ -31,6 +31,13 @@ def _mrr(gold: list[str], got: list[str], suffix: bool = False) -> float | None:
         if any(x == g or (suffix and (x.endswith("." + g) or x.endswith("/" + g))) for g in gold):
             return 1.0 / i
     return 0.0
+
+
+def _rank(gold: list[str], got: list[str], suffix: bool = False) -> int | None:
+    for i, x in enumerate(got, 1):
+        if any(x == g or (suffix and (x.endswith("." + g) or x.endswith("/" + g))) for g in gold):
+            return i
+    return None
 
 
 def _dedupe(seq):
@@ -61,6 +68,13 @@ def evaluate(ctx, dataset: list[dict], modes: list[str], k: int = 5, judge: bool
                 row["gold_file_cited"] = (sum(1 for f in q.get("gold_files", []) if f in cited) / len(q["gold_files"])) if q.get("gold_files") else None
                 if judge and ctx.llm.available:
                     row["judge"] = _judge(ctx, q, r["answer"])
+            sr = _rank(q.get("gold_symbols", []), syms, True) if q.get("gold_symbols") else None
+            fr = _rank(q.get("gold_files", []), files) if q.get("gold_files") else None
+            for kk in (1, 5, 10):
+                if q.get("gold_symbols"):
+                    row[f"sym_R@{kk}"] = 1.0 if (sr and sr <= kk) else 0.0
+                if q.get("gold_files"):
+                    row[f"file_R@{kk}"] = 1.0 if (fr and fr <= kk) else 0.0
             row.update(file_recall=_recall(q.get("gold_files", []), files, k), file_mrr=_mrr(q.get("gold_files", []), files),
                        sym_recall=_recall(q.get("gold_symbols", []), syms, k, suffix=True), sym_mrr=_mrr(q.get("gold_symbols", []), syms, suffix=True),
                        latency_ms=int((time.time() - t0) * 1000))
@@ -82,7 +96,7 @@ def _summ(rows: list[dict]) -> dict:
     def mean(key):
         v = [r[key] for r in rows if r.get(key) is not None]
         return round(statistics.mean(v), 4) if v else None
-    return {key: mean(key) for key in ("file_recall", "file_mrr", "sym_recall", "sym_mrr", "citation_precision", "keyword_coverage", "gold_file_cited", "judge", "tokens", "latency_ms")
+    return {key: mean(key) for key in ("sym_R@1", "sym_R@5", "sym_R@10", "sym_mrr", "file_R@1", "file_R@5", "file_R@10", "file_mrr", "file_recall", "sym_recall", "citation_precision", "keyword_coverage", "gold_file_cited", "judge", "tokens", "latency_ms")
             if any(r.get(key) is not None for r in rows)}
 
 
