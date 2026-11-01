@@ -56,6 +56,88 @@ def _py_declared(top: str, deps: set[str]) -> bool:
     return t in deps or ALIASES.get(t, "").replace("-", "_") in deps or any(d.replace("_", "") == t.replace("_", "") for d in deps)
 
 
+
+def check_diff_imports(ctx, files: dict) -> list[dict]:
+    """Check imports that appear in the diff's added lines directly (no git apply needed).
+
+    Called alongside check_imports so that even when git apply partially fails
+    on Windows the hallucinated-import / hallucinated-api checks still fire.
+    """
+    g = ctx.graph
+    deps = declared_dependencies(ctx.ref.src)
+    std = set(getattr(sys, "stdlib_module_names", set()))
+    out: list[dict] = []
+    with ctx.con() as con:
+        from ..parser import ParseResult
+        parsed_db = {r["path"]: ParseResult.from_json(r["json"]) for r in con.execute("SELECT path, json FROM parsed")}
+    all_paths: set[str] = set(parsed_db.keys())
+
+    py_plain_import = re.compile(r"^\s*import\s+(\S+)")
+    py_from_import  = re.compile(r"^\s*from\s+(\S+)\s+import\s+(.+)")
+
+    for path, finfo in files.items():
+        if finfo.get("deleted") or not path.endswith(".py"):
+            continue
+        added_text: list[str] = finfo.get("added_text", [])
+        added_sorted = sorted(finfo.get("added", set()))
+        for idx, line in enumerate(added_text):
+            ln = added_sorted[idx] if idx < len(added_sorted) else 0
+            # plain: import foo
+            m = py_plain_import.match(line)
+            if m:
+                top = m.group(1).split(".")[0]
+                if top and top not in std:
+                    internal = any(p == top + ".py" or p.startswith(top + "/") for p in all_paths)
+                    installed = _safe_spec(top) and importlib.util.find_spec(top) is not None
+                    if not internal and not installed and not _py_declared(top, deps):
+                        out.append({"severity": "medium", "category": "hallucinated-import", "path": path, "line": ln,
+                                    "title": f"Unresolvable package '{top}'",
+                                    "detail": f"`{top}` is not part of the repo, the standard library, an installed package, or the declared dependencies."})
+                continue
+            # from X import Y [as Z], ...
+            m2 = py_from_import.match(line)
+            if not m2:
+                continue
+            raw_mod = m2.group(1)
+            level = len(raw_mod) - len(raw_mod.lstrip("."))
+            mod = raw_mod.lstrip(".")
+            names_str = m2.group(2)
+            names = [n.strip().split(" as ")[0].strip() for n in re.split(r",\s*", names_str) if n.strip() and n.strip() != "*"]
+            if level > 0:
+                continue   # relative imports: leave to the existing check_imports
+            if not mod or not names:
+                continue
+            parts = mod.split(".")
+            target = None
+            for cand in ("/".join(parts) + ".py", "/".join(parts) + "/__init__.py",
+                         "src/" + "/".join(parts) + ".py", "src/" + "/".join(parts) + "/__init__.py"):
+                if cand in all_paths:
+                    target = cand
+                    break
+            if target:
+                tnode = g.node(f"file:{target}")
+                exports: set[str] = set(tnode["props"].get("exports", [])) if tnode else set()
+                tpr = parsed_db.get(target)
+                if tpr:
+                    exports |= {s.name for s in tpr.symbols}
+                for name in names:
+                    if name not in exports:
+                        sub = "/".join(parts) + "/" + name + ".py"
+                        if sub not in all_paths:
+                            out.append({"severity": "high", "category": "hallucinated-import", "path": path, "line": ln,
+                                        "title": f"`{name}` does not exist in `{mod}`",
+                                        "detail": f"`{target}` defines no top-level name `{name}`. Likely a hallucinated or renamed API."})
+            else:
+                top = parts[0]
+                if top and top not in std:
+                    installed = _safe_spec(top) and importlib.util.find_spec(top) is not None
+                    if not installed and not _py_declared(top, deps):
+                        out.append({"severity": "medium", "category": "hallucinated-import", "path": path, "line": ln,
+                                    "title": f"Unresolvable package '{top}'",
+                                    "detail": f"`{top}` is not part of the repo, the standard library, or the declared dependencies."})
+    return out
+
+
 def check_imports(ctx, added: dict[str, set[int]] | None = None) -> list[dict]:
     """Check imports (optionally only those on `added` line numbers per file). Returns findings."""
     from ..parser import ParseResult

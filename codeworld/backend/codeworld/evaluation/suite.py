@@ -11,7 +11,10 @@ import csv
 import json
 import os
 import platform
-import resource as _res
+try:
+    import resource as _res
+except ImportError:
+    _res = None
 import subprocess
 import sys
 import time
@@ -26,6 +29,13 @@ def sh(cmd, cwd=None, timeout=1800, **kw):
 
 def rss_mb() -> int:
     try:
+        if _res is None:
+            # Windows: use psutil if available, else estimate from process
+            try:
+                import psutil, os as _os
+                return psutil.Process(_os.getpid()).memory_info().rss // (1024 * 1024)
+            except Exception:
+                return 0
         v = _res.getrusage(_res.RUSAGE_SELF).ru_maxrss
         return int(v / (1024 * 1024) if sys.platform == "darwin" else v / 1024)
     except Exception:
@@ -141,7 +151,7 @@ def aggregate(results: list[dict], out: Path) -> None:
         rc = r.get("real_commits", {})
         if "commits" in rc:
             rows.append({**base, "experiment": "guardrail_real", "metric": "commits_with_high", "value": rc["with_high"], "detail": f"of {rc['commits']}"})
-    with open(out / "summary.csv", "w", newline="") as f:
+    with open(out / "summary.csv", "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=["repo", "commit", "experiment", "metric", "value", "detail"])
         w.writeheader()
         w.writerows(rows)
@@ -192,7 +202,7 @@ def aggregate(results: list[dict], out: Path) -> None:
         for r in rc:
             x = r["real_commits"]
             L.append(f"| {r['repo']} | {x['commits']} | {x['with_high']} | {x['with_medium_or_high']} | {x['verdicts']} |")
-    (out / "report.md").write_text("\n".join(L) + "\n")
+    (out / "report.md").write_text("\n".join(L) + "\n", encoding="utf-8")
     try:
         import matplotlib
         matplotlib.use("Agg")

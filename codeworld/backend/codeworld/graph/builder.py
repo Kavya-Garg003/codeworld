@@ -34,7 +34,9 @@ def api_id(method: str, path: str) -> str: return f"api:{method} {path}"
 
 class GraphBuilder:
     def __init__(self, parsed: dict[str, ParseResult], level: int = 2, root: Path | None = None, repo_name: str = "repo", trace_edges: list | None = None):
-        self.parsed, self.level, self.root, self.repo_name = parsed, level, root, repo_name
+        # Normalise path separators to forward slashes on all platforms (Windows guard)
+        self.parsed = {k.replace("\\", "/"): v for k, v in parsed.items()}
+        self.level, self.root, self.repo_name = level, root, repo_name
         self.trace_edges = trace_edges or []
         self.nodes: dict[str, dict] = {}
         self.edges: dict[tuple, tuple] = {}

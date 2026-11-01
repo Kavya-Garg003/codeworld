@@ -110,11 +110,21 @@ class OllamaLLM(HTTPLLM):
 
     def chat(self, messages, temperature=0.1, max_tokens=900):
         self.calls += 1
-        d = self._post(f"{self.base}/api/chat", {"model": self.model, "messages": messages, "stream": False,
-                                                   "options": {"temperature": temperature, "num_predict": max_tokens, "num_ctx": 8192}}, {}, 600)
+        payload = {
+            "model": self.model,
+            "messages": messages,
+            "stream": False,
+            "think": False,
+            "options": {"temperature": temperature, "num_predict": max_tokens, "num_ctx": 4096}
+        }
+        d = self._post(f"{self.base}/api/chat", payload, {}, 600)
         self.tokens_in += d.get("prompt_eval_count", 0)
         self.tokens_out += d.get("eval_count", 0)
-        return d["message"]["content"]
+        msg = d.get("message", {})
+        content = msg.get("content", "")
+        if not content and msg.get("thinking"):
+            content = msg.get("thinking")
+        return content or ""
 
 
 class OpenAICompatLLM(HTTPLLM):

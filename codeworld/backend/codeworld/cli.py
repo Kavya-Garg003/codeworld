@@ -57,6 +57,14 @@ def main(argv=None):
     s.add_argument("--dataset"); s.add_argument("--modes", default="bm25,vector,hybrid,graph,agentic"); s.add_argument("--k", type=int, default=5)
     s.add_argument("--truth"); s.add_argument("--commits", type=int, default=300); s.add_argument("--out")
     a = ap.parse_args(argv)
+    # Windows: stdout may default to a legacy codec (cp1252/charmap) that cannot encode emoji.
+    # Reconfigure stdout/stderr to UTF-8 so markdown output (✅ ⚠️ ❌ etc.) prints correctly.
+    if hasattr(sys.stdout, "reconfigure"):
+        try:
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+            sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
     st = get_settings()
 
     if a.cmd == "doctor":
@@ -105,10 +113,14 @@ def main(argv=None):
         ctx = _repo(st, a.repo)
         diff = Path(a.diff_file).read_text() if a.diff_file else diffreview.git_diff(ctx.ref.src, a.base, a.head)
         rep = diffreview.review_diff(ctx, diff) if not a.diff_file else diffreview.review_patch(ctx, diff)
-        out = json.dumps({k: v for k, v in rep.items() if k != "graph"}, indent=2) if a.json else rep["markdown"]
-        print(out)
+        out = json.dumps({k: v for k, v in rep.items() if k != "graph"}, indent=2) if a.json else diffreview.to_markdown(rep, emoji=True)
+        # Write to stdout safely; errors="replace" handles consoles that don't support emoji
+        try:
+            print(out)
+        except UnicodeEncodeError:
+            print(out.encode("ascii", errors="replace").decode("ascii"))
         if a.output:
-            Path(a.output).write_text(rep["markdown"])
+            Path(a.output).write_text(rep["markdown"], encoding="utf-8")
         if a.fail_on != "never" and (rep["counts"]["high"] or (a.fail_on == "medium" and rep["counts"]["medium"])):
             sys.exit(1)
     elif a.cmd == "onboard":

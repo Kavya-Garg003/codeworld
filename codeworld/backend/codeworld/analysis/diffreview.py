@@ -87,8 +87,18 @@ def review_diff(ctx, diff_text: str) -> dict:
                                      "No test calls this function directly or transitively. Add or extend a test.", n["path"], n["start"], n["qualname"]))
     # 3 ---- hallucinated imports / APIs ----------------------------------------------------------------------
     added_lines = {p: f["added"] for p, f in code_files.items()}
+    seen_import_titles: set[str] = set()
     for h in importcheck.check_imports(ctx, added_lines):
-        findings.append(_finding(h["severity"], h["category"], h["title"], h["detail"], h["path"], h["line"]))
+        key = (h["path"], h["title"])
+        if key not in seen_import_titles:
+            seen_import_titles.add(key)
+            findings.append(_finding(h["severity"], h["category"], h["title"], h["detail"], h["path"], h["line"]))
+    # Also check directly from diff text (catches cases where git apply didn't update the index on Windows)
+    for h in importcheck.check_diff_imports(ctx, code_files):
+        key = (h["path"], h["title"])
+        if key not in seen_import_titles:
+            seen_import_titles.add(key)
+            findings.append(_finding(h["severity"], h["category"], h["title"], h["detail"], h["path"], h["line"]))
     # 4 ---- architecture drift: layering + cycles --------------------------------------------------------------
     for v in health.layering_violations(ctx, set(code_files)):
         if v["line"] in code_files[v["from"]]["added"]:
@@ -108,6 +118,40 @@ def review_diff(ctx, diff_text: str) -> dict:
         for d in similar_to(mine["text"], [r for r in rows if not g.props(r["node_id"]).get("is_test")], {s}):
             findings.append(_finding("medium", "duplicate-logic", f"`{n['qualname']}` closely duplicates `{d['name']}` ({int(d['similarity']*100)}% similar)",
                                      f"Consider reusing `{d['name']}` ({d['path']}:{d['start']}) instead of adding a copy.", n["path"], n["start"], n["qualname"]))
+    # 5b ---- also check new functions extracted directly from diff text (robust when git apply doesn't update the index)
+    _py_func_hdr = re.compile(r"^[\+]?\s*(?:async\s+)?def\s+(\w+)\s*\(")
+    for path, finfo in code_files.items():
+        if not path.endswith(".py"):
+            continue
+        added_text = finfo.get("added_text", [])
+        func_body: list[str] = []
+        func_name: str | None = None
+        func_start: int = 0
+        added_sorted = sorted(finfo.get("added", set()))
+        def _flush_func():
+            nonlocal func_body, func_name, func_start
+            if func_name and len(func_body) >= 5:
+                synth_chunk = {"node_id": f"diff:{path}:{func_name}", "name": func_name,
+                               "path": path, "start": func_start, "end": func_start + len(func_body),
+                               "text": "\n".join(func_body)}
+                existing_ids = {s for s in prod_changed}
+                for d in similar_to(synth_chunk["text"], [r for r in rows if not g.props(r["node_id"]).get("is_test")], existing_ids):
+                    findings.append(_finding("medium", "duplicate-logic",
+                                             f"`{func_name}` (new in diff) closely duplicates `{d['name']}` ({int(d['similarity']*100)}% similar)",
+                                             f"Consider reusing `{d['name']}` ({d['path']}:{d['start']}) instead of adding a copy.",
+                                             path, func_start, func_name))
+            func_body, func_name = [], None
+        for idx, line in enumerate(added_text):
+            ln = added_sorted[idx] if idx < len(added_sorted) else 0
+            m = _py_func_hdr.match(line)
+            if m:
+                _flush_func()
+                func_name = m.group(1)
+                func_start = ln
+                func_body = [line.lstrip("+")]
+            elif func_name:
+                func_body.append(line.lstrip("+"))
+        _flush_func()
     # 6 ---- risky sinks reachable from endpoints ------------------------------------------------------------------
     surf = {r["handler"]: r for r in attack_surface(ctx)}
     for s in changed:
@@ -162,12 +206,18 @@ def review_diff(ctx, diff_text: str) -> dict:
               "changed_files": sorted(files), "changed_symbols": [g.nodes[s]["qualname"] for s in changed],
               "blast_radius": {k: blast[k] for k in ("risk", "counts", "apis", "tests", "likely_tests", "files")} if blast and "error" not in blast else None,
               "graph": blast["graph"] if blast and "error" not in blast else {"nodes": [], "edges": []}}
-    report["markdown"] = to_markdown(report)
+    report["markdown"] = to_markdown(report, emoji=False)
     return report
 
 
-def to_markdown(r: dict) -> str:
-    icon = {"pass": "✅", "warn": "⚠️", "fail": "❌"}[r["verdict"]]
+def to_markdown(r: dict, emoji: bool = True) -> str:
+    import sys
+    # Use emoji only when explicitly requested or when stdout supports it;
+    # .md file output (emoji=False) uses ASCII-safe alternatives so Windows read_text() works.
+    _safe = emoji and getattr(sys.stdout, "encoding", "ascii").lower().replace("-", "") in ("utf8", "utf16", "utf32")
+    icon = {"pass": "\u2705" if _safe else "[PASS]",
+            "warn": "\u26a0\ufe0f" if _safe else "[WARN]",
+            "fail": "\u274c" if _safe else "[FAIL]"}[r["verdict"]]
     out = [f"## {icon} CodeWorld PR Guardrail: **{r['verdict'].upper()}**",
            f"{r['counts']['high']} high · {r['counts']['medium']} medium · {r['counts']['low']} low | {len(r['changed_files'])} files, {len(r['changed_symbols'])} symbols changed", ""]
     b = r.get("blast_radius")

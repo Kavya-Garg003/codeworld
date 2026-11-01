@@ -118,7 +118,7 @@ def detect_effects(text: str, patterns) -> list[str]:
 
 
 def is_test_path(path: str) -> bool:
-    p = path.lower()
+    p = path.lower().replace("\\", "/")   # normalise Windows separators
     base = p.rsplit("/", 1)[-1]
     parts = p.split("/")
     return (
