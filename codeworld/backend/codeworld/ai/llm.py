@@ -106,13 +106,22 @@ class HTTPLLM(LLM):
 class OllamaLLM(HTTPLLM):
     def __init__(self, model: str, base: str, rpm: float = 0):
         super().__init__("ollama", model, rpm)
+        self.label = "ollama"
         self.base = base.rstrip("/")
 
     def chat(self, messages, temperature=0.1, max_tokens=900):
         self.calls += 1
+        clean_msgs = []
+        for m in messages:
+            content = m.get("content", "")
+            if isinstance(content, list):
+                text_parts = [p.get("text", "") for p in content if isinstance(p, dict) and p.get("type") == "text"]
+                clean_msgs.append({**m, "content": " ".join(text_parts)})
+            else:
+                clean_msgs.append(m)
         payload = {
             "model": self.model,
-            "messages": messages,
+            "messages": clean_msgs,
             "stream": False,
             "think": False,
             "options": {"temperature": temperature, "num_predict": max_tokens, "num_ctx": 4096}
@@ -130,17 +139,36 @@ class OllamaLLM(HTTPLLM):
 class OpenAICompatLLM(HTTPLLM):
     def __init__(self, label: str, model: str, base: str, key: str, rpm: float = 0):
         super().__init__(label, model, rpm)
+        self.label = label
         self.base, self.key = base.rstrip("/"), key
+        self.last_reasoning_details = None
 
     def chat(self, messages, temperature=0.1, max_tokens=900):
         self.calls += 1
         h = {"Authorization": f"Bearer {self.key}"} if self.key else {}
-        d = self._post(f"{self.base}/chat/completions", {"model": self.model, "messages": messages, "temperature": temperature, "max_tokens": max_tokens}, h, 180)
+        is_vision = (self.label == "gemini")
+        clean_msgs = []
+        for m in messages:
+            content = m.get("content", "")
+            if isinstance(content, list) and not is_vision:
+                text_parts = [p.get("text", "") for p in content if isinstance(p, dict) and p.get("type") == "text"]
+                clean_msgs.append({**m, "content": " ".join(text_parts)})
+            else:
+                clean_msgs.append(m)
+
+        payload = {"model": self.model, "messages": clean_msgs, "temperature": temperature, "max_tokens": max_tokens}
+        if self.label == "openrouter" or "openrouter.ai" in self.base:
+            payload["reasoning"] = {"enabled": True}
+        d = self._post(f"{self.base}/chat/completions", payload, h, 180)
         u = d.get("usage") or {}
         self.tokens_in += u.get("prompt_tokens", 0)
         self.tokens_out += u.get("completion_tokens", 0)
         try:
-            content = d["choices"][0]["message"]["content"]
+            choice = d["choices"][0]
+            msg = choice.get("message", {})
+            content = msg.get("content") or ""
+            if "reasoning_details" in msg:
+                self.last_reasoning_details = msg["reasoning_details"]
         except (KeyError, IndexError, TypeError):
             raise LLMError(f"unexpected response from {self.name}: {str(d)[:200]}")
         return content or ""
@@ -160,12 +188,30 @@ class ChainLLM(LLM):
         super().__init__()
         self.parts, self.name = parts, " -> ".join(p.name for p in parts)
 
+    @property
+    def retries(self):
+        return self.parts[0].retries if self.parts else 0
+
+    @retries.setter
+    def retries(self, val):
+        for p in self.parts:
+            p.retries = val
+
+    def list_models(self) -> list[str]:
+        for p in self.parts:
+            if hasattr(p, "list_models"):
+                return p.list_models()
+        return []
+
     def chat(self, messages, temperature=0.1, max_tokens=900):
         self.calls += 1
         errs = []
         for p in self.parts:
             try:
-                return p.chat(messages, temperature, max_tokens)
+                res = p.chat(messages, temperature, max_tokens)
+                if hasattr(p, "last_reasoning_details"):
+                    self.last_reasoning_details = p.last_reasoning_details
+                return res
             except Exception as e:
                 errs.append(f"{p.name}: {e}")
                 log.warning("LLM %s failed, trying next: %s", p.name, e)
@@ -178,24 +224,82 @@ class ChainLLM(LLM):
                 "seconds": round(sum(p.seconds for p in self.parts), 2), "parts": [p.usage() for p in self.parts]}
 
 
-def _build(provider: str, model: str, settings) -> LLM:
+def get_available_models(settings) -> list[dict]:
+    gemini_key = os.environ.get("GEMINI_API_KEY", "") or settings.llm_api_key
+    openrouter_key = os.environ.get("OPENROUTER_API_KEY", "") or os.environ.get("CODEWORLD_LLM_API_KEY", "") or settings.llm_api_key
+    return [
+        {
+            "id": "gemini",
+            "provider": "gemini",
+            "model": "gemini-3.5-flash-lite",
+            "name": "Google Gemini 3.5 Flash Lite",
+            "badge": "Gemini · Fast · Vision",
+            "vision": True,
+            "configured": bool(gemini_key),
+        },
+        {
+            "id": "openrouter",
+            "provider": "openrouter",
+            "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+            "name": "OpenRouter Nemotron 550B",
+            "badge": "OpenRouter · 550B · Reasoning",
+            "vision": False,
+            "configured": bool(openrouter_key),
+        },
+        {
+            "id": "ollama",
+            "provider": "ollama",
+            "model": "qwen3.5:4b",
+            "name": "Ollama Local (qwen3.5:4b)",
+            "badge": "Local · Offline CPU",
+            "vision": False,
+            "configured": True,
+        },
+    ]
+
+
+def _build(provider: str, model: str | None, settings) -> LLM:
     rpm = float(os.environ.get("CODEWORLD_LLM_RPM", "0") or 0)
     if provider == "ollama":
-        return OllamaLLM(model, settings.llm_base_url, rpm)
+        m = model or os.environ.get("CODEWORLD_OLLAMA_MODEL") or "qwen3.5:4b"
+        return OllamaLLM(m, settings.llm_base_url, rpm)
+    if provider == "gemini":
+        m = model or "gemini-3.5-flash-lite"
+        key = os.environ.get("GEMINI_API_KEY", "") or settings.llm_api_key
+        if not key:
+            raise LLMError("gemini: set GEMINI_API_KEY")
+        base = PRESETS["gemini"][0]
+        return OpenAICompatLLM("gemini", m, base, key, rpm)
+    if provider == "openrouter":
+        m = model or "nvidia/nemotron-3-ultra-550b-a55b:free"
+        key = os.environ.get("OPENROUTER_API_KEY", "") or os.environ.get("CODEWORLD_LLM_API_KEY", "") or settings.llm_api_key
+        if not key:
+            raise LLMError("openrouter: set OPENROUTER_API_KEY")
+        base = "https://openrouter.ai/api/v1"
+        return OpenAICompatLLM("openrouter", m, base, key, rpm)
     if provider in PRESETS:
         base, env = PRESETS[provider]
         key = os.environ.get(env, "") or settings.llm_api_key
         if not key:
             raise LLMError(f"{provider}: set {env} (or CODEWORLD_LLM_API_KEY)")
-        if provider == settings.llm_provider and settings.llm_base_url and "11434" not in settings.llm_base_url:
+        if provider == settings.llm_provider and settings.llm_base_url and "11434" not in settings.llm_base_url and "responses" not in settings.llm_base_url:
             base = settings.llm_base_url          # explicit override
-        return OpenAICompatLLM(provider, model, base, key, rpm)
+        return OpenAICompatLLM(provider, model or "default", base, key, rpm)
     if provider in ("openai", "openai-compatible"):
-        return OpenAICompatLLM("openai", model, settings.llm_base_url, settings.llm_api_key, rpm)
+        return OpenAICompatLLM("openai", model or "default", settings.llm_base_url, settings.llm_api_key, rpm)
     raise LLMError(f"unknown LLM provider '{provider}'")
 
 
 _cache: dict[tuple, LLM] = {}
+
+
+def get_model_llm(provider: str, model: str | None, settings) -> LLM:
+    key = (provider, model)
+    if key in _cache:
+        return _cache[key]
+    llm = _build(provider, model, settings)
+    _cache[key] = llm
+    return llm
 
 
 def get_llm(settings) -> LLM:

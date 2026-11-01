@@ -103,3 +103,9 @@ details summary { cursor: pointer; color: var(--muted); font-size: 12.5px; }
 .city { position: relative; height: 100%; } .city canvas { display: block; } .city .hud { position: absolute; top: 12px; left: 12px; display: flex; gap: 8px; } .city .tip { position: absolute; pointer-events: none; background: var(--deep); color: #fff; padding: 6px 10px; border-radius: 8px; font-size: 12px; display: none; max-width: 300px; }
 
 .bar.good > i { background: linear-gradient(90deg, var(--rose), var(--amber) 45%, var(--sage)); background-size: 100vw 100%; }
+
+/* multimodal & chat enhancements */
+.image-preview-chip { display: flex; align-items: center; gap: 8px; background: var(--paper-2); padding: 6px 12px; border-radius: 8px; margin-bottom: 8px; border: 1px dashed var(--line); }
+.image-preview-chip img { height: 42px; border-radius: 4px; object-fit: cover; }
+.model-pill { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; }
+.reasoning-box { background: rgba(0, 0, 0, 0.18); border-left: 3px solid var(--amber); padding: 8px 12px; border-radius: 4px; font-size: 12.5px; line-height: 1.45; white-space: pre-wrap; margin-top: 6px; }

@@ -97,11 +97,12 @@ def api_health():
     s = get_settings()
     llm_ok = s.llm_provider != "none"
     import os
-    from ..ai.llm import get_llm
+    from ..ai.llm import get_llm, get_available_models
     llm = get_llm(s)
     return {"status": "ok", "version": __version__, "auth": bool(os.environ.get("CODEWORLD_API_TOKEN")),
             "llm": {"provider": s.llm_provider if llm.available else "none", "model": s.llm_model if llm.available else None, "chain": llm.name, "usage": llm.usage()},
-            "embeddings": {"backend": s.embed_backend, "model": get_embedder(s).name}, "resolver_level": s.resolver_level}
+            "embeddings": {"backend": s.embed_backend, "model": get_embedder(s).name}, "resolver_level": s.resolver_level,
+            "models": get_available_models(s)}
 
 
 @app.get("/api/repos")
@@ -330,11 +331,17 @@ class AskBody(BaseModel):
     agent: bool = True
     history: list[dict] = []
     k: int = 8
+    provider: str | None = None
+    model: str | None = None
+    image: str | None = None
 
 
 @app.post("/api/repos/{repo_id}/ask")
 def ask(repo_id: str, body: AskBody):
-    return ask_question(_ctx(repo_id), body.question, body.mode, body.agent, body.history, body.k)
+    return ask_question(
+        _ctx(repo_id), body.question, body.mode, body.agent, body.history, body.k,
+        provider=body.provider, model=body.model, image=body.image
+    )
 
 
 @app.get("/api/repos/{repo_id}/impact")

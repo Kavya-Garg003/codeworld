@@ -172,14 +172,22 @@ def _parse_json(s: str) -> dict | None:
     return None
 
 
-def run_llm_agent(ctx, question, tools: ToolRegistry, trace: list, history, max_steps: int = 5) -> str | None:
+def run_llm_agent(ctx, question, tools: ToolRegistry, trace: list, history, max_steps: int = 5, active_llm=None, image: str | None = None) -> str | None:
+    llm = active_llm or ctx.llm
     desc = "\n".join(f"- {t['name']}({', '.join(t['inputSchema']['properties'])}): {t['description']}" for t in tools.describe())
     msgs = [{"role": "system", "content": SYSTEM + "\n" + AGENT_PROMPT % (desc, max_steps)}]
-    msgs += (history or [])[-6:]
-    msgs.append({"role": "user", "content": question})
+    for h in (history or [])[-6:]:
+        item = {"role": h.get("role", "user"), "content": h.get("content", "")}
+        if "reasoning_details" in h and h["reasoning_details"]:
+            item["reasoning_details"] = h["reasoning_details"]
+        msgs.append(item)
+    if image and getattr(llm, "label", "") == "gemini":
+        msgs.append({"role": "user", "content": [{"type": "text", "text": question}, {"type": "image_url", "image_url": {"url": image}}]})
+    else:
+        msgs.append({"role": "user", "content": question})
     bad = 0
     for _ in range(max_steps + 1):
-        out = ctx.llm.chat(msgs, max_tokens=900)
+        out = llm.chat(msgs, max_tokens=900)
         obj = _parse_json(out)
         if not obj:
             bad += 1
@@ -198,12 +206,13 @@ def run_llm_agent(ctx, question, tools: ToolRegistry, trace: list, history, max_
         trace.append({"tool": name, "args": args, "ms": int((time.time() - t0) * 1000), "summary": compact(res, 160)})
         msgs += [{"role": "assistant", "content": json.dumps(obj)}, {"role": "user", "content": "TOOL RESULT:\n" + compact(res, 4500)}]
     msgs.append({"role": "user", "content": 'Give your final answer now as {"final": "..."}.'})
-    obj = _parse_json(ctx.llm.chat(msgs, max_tokens=900)) or {}
+    obj = _parse_json(llm.chat(msgs, max_tokens=900)) or {}
     return str(obj["final"]) if "final" in obj else None
 
 
 # ------------------------------------------------------------------------------- public API
-def ask(ctx, question: str, mode: str = "auto", agent: bool = True, history: list | None = None, k: int = 8) -> dict:
+def ask(ctx, question: str, mode: str = "auto", agent: bool = True, history: list | None = None, k: int = 8,
+        provider: str | None = None, model: str | None = None, image: str | None = None) -> dict:
     t0 = time.time()
     g = ctx.graph
     seen = Seen()
@@ -212,10 +221,20 @@ def ask(ctx, question: str, mode: str = "auto", agent: bool = True, history: lis
     trace: list[dict] = []
     notes: list[str] = []
     answer, hits = None, []
-    llm = ctx.llm
+
+    if provider:
+        from ..ai.llm import get_model_llm
+        try:
+            llm = get_model_llm(provider, model, ctx.settings)
+        except Exception as e:
+            llm = ctx.llm
+            notes.append(f"Model provider '{provider}' fallback: {e}")
+    else:
+        llm = ctx.llm
+
     if agent and llm.available:
         try:
-            answer = run_llm_agent(ctx, question, tools, trace, history)
+            answer = run_llm_agent(ctx, question, tools, trace, history, active_llm=llm, image=image)
         except Exception as e:
             notes.append(f"LLM agent failed ({type(e).__name__}); fell back to retrieval.")
     if answer is None:
@@ -226,8 +245,26 @@ def ask(ctx, question: str, mode: str = "auto", agent: bool = True, history: lis
         if llm.available:
             try:
                 context, used = ctx.retriever.context(hits)
-                msgs = [{"role": "system", "content": SYSTEM}] + (history or [])[-6:] + [
-                    {"role": "user", "content": f"Question: {question}\n\nCode context:\n{context}"}]
+                prompt_text = f"Question: {question}\n\nCode context:\n{context}"
+                if image:
+                    user_content = [
+                        {"type": "text", "text": prompt_text + "\n(An image/screenshot has been attached for visual context.)"},
+                        {"type": "image_url", "image_url": {"url": image}}
+                    ]
+                    if getattr(llm, "label", "") != "gemini":
+                        notes.append("Attached image: Switch to Gemini for full visual analysis.")
+                else:
+                    user_content = prompt_text
+
+                clean_history = []
+                for h in (history or [])[-8:]:
+                    item = {"role": h.get("role", "user"), "content": h.get("content", "")}
+                    if "reasoning_details" in h and h["reasoning_details"]:
+                        item["reasoning_details"] = h["reasoning_details"]
+                    clean_history.append(item)
+
+                msgs = [{"role": "system", "content": SYSTEM}] + clean_history + [
+                    {"role": "user", "content": user_content}]
                 answer = llm.chat(msgs, max_tokens=900)
             except Exception as e:
                 notes.append(f"LLM call failed ({type(e).__name__}: {str(e)[:80]}); showing extractive answer.")
@@ -244,7 +281,10 @@ def ask(ctx, question: str, mode: str = "auto", agent: bool = True, history: lis
             nid = g.enclosing_symbol(c["path"], c["start"])
             if nid and nid not in highlight:
                 highlight.append(nid)
-    return {"answer": answer, "citations": cites, "citation_precision": (len(valid) / len(cites)) if cites else None,
+    resp = {"answer": answer, "citations": cites, "citation_precision": (len(valid) / len(cites)) if cites else None,
             "intent": intent, "mode": mode, "provider": llm.name if llm.available else "offline", "trace": trace, "notes": notes,
             "hits": [h.to_dict(240) for h in hits[:k]], "highlight": highlight,
             "latency_ms": int((time.time() - t0) * 1000), "approx_tokens": estimate_tokens(answer)}
+    if getattr(llm, "last_reasoning_details", None):
+        resp["reasoning_details"] = llm.last_reasoning_details
+    return resp

@@ -15,6 +15,7 @@ def data_dir(tmp_path, monkeypatch):
     monkeypatch.setenv("CODEWORLD_ALLOW_LOCAL", "1")
     monkeypatch.setenv("CODEWORLD_EMBED_BACKEND", "hash")
     monkeypatch.setenv("CODEWORLD_LLM_PROVIDER", "none")
+    monkeypatch.delenv("CODEWORLD_LLM_FALLBACKS", raising=False)
     from codeworld import service
     service._ctx_cache.clear()
     return d
