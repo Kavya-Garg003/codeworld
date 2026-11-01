@@ -9,12 +9,23 @@ import json
 import sys
 from pathlib import Path
 
-from . import __version__
-from .agent.tools import ToolError, ToolRegistry, compact
-from .config import get_settings
-from .indexer import index_repo
-from .ingest import register_repo
-from .service import get_context
+try:
+    from . import __version__
+    from .agent.tools import ToolError, ToolRegistry, compact
+    from .config import get_settings
+    from .indexer import index_repo
+    from .ingest import register_repo
+    from .service import get_context
+except (ImportError, ValueError):
+    _backend_dir = str(Path(__file__).resolve().parents[1])
+    if _backend_dir not in sys.path:
+        sys.path.insert(0, _backend_dir)
+    from codeworld import __version__
+    from codeworld.agent.tools import ToolError, ToolRegistry, compact
+    from codeworld.config import get_settings
+    from codeworld.indexer import index_repo
+    from codeworld.ingest import register_repo
+    from codeworld.service import get_context
 
 PROTOCOL = "2024-11-05"
 

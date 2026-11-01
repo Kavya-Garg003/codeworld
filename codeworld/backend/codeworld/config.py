@@ -4,6 +4,20 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
+try:
+    from dotenv import load_dotenv, find_dotenv
+    _repo_env = Path(__file__).resolve().parents[2] / ".env"
+    _home_env = Path.home() / ".codeworld" / ".env"
+    _found = find_dotenv(usecwd=True)
+    if _found:
+        load_dotenv(_found, override=False)
+    elif _repo_env.exists():
+        load_dotenv(_repo_env, override=False)
+    elif _home_env.exists():
+        load_dotenv(_home_env, override=False)
+except ImportError:
+    pass
+
 
 def _env(name: str, default: str = "") -> str:
     return os.environ.get(name, default)
