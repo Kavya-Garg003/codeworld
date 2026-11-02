@@ -55,6 +55,32 @@ def _finding(sev, cat, title, detail, path=None, line=None, symbol=None):
     return {"severity": sev, "category": cat, "title": title, "detail": detail, "path": path, "line": line, "symbol": symbol}
 
 
+def apply_rules(ctx, findings: list[dict], code_files: dict[str, dict]) -> list[dict]:
+    """Filter findings according to repository rules (.codeworld.yml).
+
+    Supports:
+      - `ignore`: list of rule categories to ignore (e.g. ['untested-change', 'duplicate-logic'])
+      - `changed_lines_only`: if true, report medium/low severity findings only on newly added lines
+    """
+    rules = health.load_rules(ctx)
+    ignore = set(rules.get("ignore", []))
+    changed_only = bool(rules.get("changed_lines_only", False))
+
+    filtered = []
+    for f in findings:
+        cat = f.get("category", "")
+        if cat in ignore:
+            continue
+        if changed_only and f.get("severity") in ("medium", "low"):
+            path = f.get("path")
+            line = f.get("line")
+            if path in code_files and line is not None:
+                if line not in code_files[path].get("added", set()):
+                    continue
+        filtered.append(f)
+    return filtered
+
+
 def review_diff(ctx, diff_text: str) -> dict:
     g = ctx.graph
     files = parse_unified_diff(diff_text)
@@ -93,7 +119,7 @@ def review_diff(ctx, diff_text: str) -> dict:
         if key not in seen_import_titles:
             seen_import_titles.add(key)
             findings.append(_finding(h["severity"], h["category"], h["title"], h["detail"], h["path"], h["line"]))
-    # Also check directly from diff text (catches cases where git apply didn't update the index on Windows)
+    # Also check directly from diff text (catches cases where the index was not updated on Windows)
     for h in importcheck.check_diff_imports(ctx, code_files):
         key = (h["path"], h["title"])
         if key not in seen_import_titles:
@@ -118,40 +144,6 @@ def review_diff(ctx, diff_text: str) -> dict:
         for d in similar_to(mine["text"], [r for r in rows if not g.props(r["node_id"]).get("is_test")], {s}):
             findings.append(_finding("medium", "duplicate-logic", f"`{n['qualname']}` closely duplicates `{d['name']}` ({int(d['similarity']*100)}% similar)",
                                      f"Consider reusing `{d['name']}` ({d['path']}:{d['start']}) instead of adding a copy.", n["path"], n["start"], n["qualname"]))
-    # 5b ---- also check new functions extracted directly from diff text (robust when git apply doesn't update the index)
-    _py_func_hdr = re.compile(r"^[\+]?\s*(?:async\s+)?def\s+(\w+)\s*\(")
-    for path, finfo in code_files.items():
-        if not path.endswith(".py"):
-            continue
-        added_text = finfo.get("added_text", [])
-        func_body: list[str] = []
-        func_name: str | None = None
-        func_start: int = 0
-        added_sorted = sorted(finfo.get("added", set()))
-        def _flush_func():
-            nonlocal func_body, func_name, func_start
-            if func_name and len(func_body) >= 5:
-                synth_chunk = {"node_id": f"diff:{path}:{func_name}", "name": func_name,
-                               "path": path, "start": func_start, "end": func_start + len(func_body),
-                               "text": "\n".join(func_body)}
-                existing_ids = {s for s in prod_changed}
-                for d in similar_to(synth_chunk["text"], [r for r in rows if not g.props(r["node_id"]).get("is_test")], existing_ids):
-                    findings.append(_finding("medium", "duplicate-logic",
-                                             f"`{func_name}` (new in diff) closely duplicates `{d['name']}` ({int(d['similarity']*100)}% similar)",
-                                             f"Consider reusing `{d['name']}` ({d['path']}:{d['start']}) instead of adding a copy.",
-                                             path, func_start, func_name))
-            func_body, func_name = [], None
-        for idx, line in enumerate(added_text):
-            ln = added_sorted[idx] if idx < len(added_sorted) else 0
-            m = _py_func_hdr.match(line)
-            if m:
-                _flush_func()
-                func_name = m.group(1)
-                func_start = ln
-                func_body = [line.lstrip("+")]
-            elif func_name:
-                func_body.append(line.lstrip("+"))
-        _flush_func()
     # 6 ---- risky sinks reachable from endpoints ------------------------------------------------------------------
     surf = {r["handler"]: r for r in attack_surface(ctx)}
     for s in changed:
@@ -194,6 +186,7 @@ def review_diff(ctx, diff_text: str) -> dict:
         if cx >= 15:
             n = g.node(s)
             findings.append(_finding("low", "complexity", f"High cyclomatic complexity ({cx}): {n['qualname']}", "Consider splitting this function.", n["path"], n["start"], n["qualname"]))
+    findings = apply_rules(ctx, findings, code_files)
     findings.sort(key=lambda f: -SEVERITY_ORDER[f["severity"]])
     seen, uniq = set(), []
     for f in findings:
@@ -246,8 +239,10 @@ def review_refs(ctx, base: str, head: str = "HEAD") -> dict:
 def review_patch(ctx, diff_text: str) -> dict:
     """Review a pasted diff against the *currently indexed snapshot* (treated as the base).
 
-    The snapshot is copied to a scratch directory, the patch is applied (never executed), the scratch copy is re-indexed
-    incrementally, and the guardrail runs on the resulting 'head' graph. The original index is never modified.
+    The snapshot is copied to a scratch directory, the patch is applied with the
+    pure-Python patchapply module (no `git apply` — avoids CRLF issues on Windows),
+    the scratch copy is re-indexed incrementally, and the guardrail runs on the
+    resulting 'head' graph. The original index is never modified.
     """
     import shutil
     import sqlite3
@@ -257,6 +252,7 @@ def review_patch(ctx, diff_text: str) -> dict:
     from ..config import get_settings
     from ..indexer import index_repo
     from ..ingest import IGNORE_DIRS, RepoRef
+    from ..patchapply import apply_patch_text
     from ..service import RepoContext
 
     s = get_settings()
@@ -264,14 +260,17 @@ def review_patch(ctx, diff_text: str) -> dict:
     try:
         src = tmp / "src"
         shutil.copytree(ctx.ref.src, src, ignore=shutil.ignore_patterns(*IGNORE_DIRS), symlinks=False)
-        patch = tmp / "change.diff"
-        patch.write_text(diff_text if diff_text.endswith("\n") else diff_text + "\n", encoding="utf8")
-        r = subprocess.run(["git", "apply", "--unidiff-zero", "--whitespace=nowarn", "--recount", str(patch)], cwd=src, capture_output=True, timeout=60)
-        if r.returncode != 0:
+
+        # Apply patch with pure-Python applier (works on Windows with CRLF diffs)
+        ok, err = apply_patch_text(src, diff_text)
+        if not ok:
             rep = review_diff(ctx, diff_text)
-            rep["note"] = ("Patch could not be applied to the indexed snapshot (" + r.stderr.decode("utf8", "replace")[:160].strip() +
-                           "). Reviewed against the current index instead - make sure the index contains the PR head.")
+            rep["note"] = (
+                f"Patch could not be applied to the indexed snapshot ({err[:160]}). "
+                "Reviewed against the current index instead — make sure the index contains the PR head."
+            )
             return rep
+
         db = tmp / "index.db"
         with sqlite3.connect(str(ctx.ref.db)) as a, sqlite3.connect(str(db)) as b:
             a.backup(b)
@@ -279,8 +278,8 @@ def review_patch(ctx, diff_text: str) -> dict:
         index_repo(s, ref)
         tctx = RepoContext(s, ref)
         rep = review_diff(tctx, diff_text)
-        rep["note"] = "Patch applied to a scratch copy of the indexed snapshot and re-indexed; your index was not modified."
-        rep["markdown"] = rep["markdown"] + "\n\n_" + rep["note"] + "_"
+        rep["note"] = "applied to a scratch copy of the indexed snapshot and re-indexed; your index was not modified."
+        rep["markdown"] = rep["markdown"] + "\n\n_Patch " + rep["note"] + "_"
         return rep
     finally:
         shutil.rmtree(tmp, ignore_errors=True)

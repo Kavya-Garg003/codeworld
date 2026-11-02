@@ -1,6 +1,7 @@
 """Codebase health: cycles, dead code, hotspots, layering, bus factor, test coverage-by-graph, duplicates, complexity."""
 from __future__ import annotations
 import math
+from pathlib import Path
 import re
 from collections import Counter, deque
 
@@ -18,14 +19,22 @@ DEFAULT_LAYERS = [["api", "apis", "routes", "routers", "controllers", "views", "
 
 def load_rules(ctx) -> dict:
     for name in (".codeworld.yml", ".codeworld.yaml"):
-        p = ctx.ref.src / name
-        if p.exists():
-            try:
-                d = yaml.safe_load(p.read_text("utf8")) or {}
-                return {"layers": d.get("layers") or DEFAULT_LAYERS, "forbid": d.get("forbid") or [], "source": name}
-            except Exception:
-                pass
-    return {"layers": DEFAULT_LAYERS, "forbid": [], "source": "default heuristics"}
+        src = getattr(getattr(ctx, "ref", None), "src", None)
+        if src:
+            p = Path(src) / name
+            if p.exists():
+                try:
+                    d = yaml.safe_load(p.read_text("utf8")) or {}
+                    return {
+                        "layers": d.get("layers") or DEFAULT_LAYERS,
+                        "forbid": d.get("forbid") or [],
+                        "ignore": d.get("ignore") or [],
+                        "changed_lines_only": bool(d.get("changed_lines_only", False)),
+                        "source": name,
+                    }
+                except Exception:
+                    pass
+    return {"layers": DEFAULT_LAYERS, "forbid": [], "ignore": [], "changed_lines_only": False, "source": "default heuristics"}
 
 
 def layer_of(path: str, layers, use_stem: bool = False) -> int | None:

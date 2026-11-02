@@ -12,3 +12,5 @@ python-multipart>=0.0.9
 pydantic>=2.6
 pyyaml>=6.0
 jedi>=0.19          # optional resolver level 3 (falls back silently if missing)
+python-dotenv>=1.0  # auto-load .env; also used by config.py
+psutil>=5.9         # memory/CPU stats in experiment suite; missing → shows 0

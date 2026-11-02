@@ -11,7 +11,7 @@ from pathlib import Path
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 from .. import __version__
 from ..agent.answer import ask as ask_question
@@ -334,6 +334,15 @@ class AskBody(BaseModel):
     provider: str | None = None
     model: str | None = None
     image: str | None = None
+
+    @field_validator("image")
+    @classmethod
+    def _cap_image(cls, v: str | None) -> str | None:
+        """Reject images larger than ~2.8 MB (base64 of 2 MB binary ≈ 2.7 MB).
+        This prevents localStorage quota exhaustion and excessively large payloads."""
+        if v is not None and len(v) > 2_800_000:
+            raise ValueError("image field exceeds 2 MB limit; resize or crop the image first")
+        return v
 
 
 @app.post("/api/repos/{repo_id}/ask")

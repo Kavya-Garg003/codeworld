@@ -12,10 +12,12 @@ const MODES = [
   ['bm25', 'BM25 only']
 ]
 
-const MODELS = [
-  { id: 'gemini', provider: 'gemini', model: 'gemini-3.5-flash-lite', name: '⚡ Google Gemini 3.5 Flash', badge: 'Fast · Multimodal', vision: true },
-  { id: 'openrouter', provider: 'openrouter', model: 'nvidia/nemotron-3-ultra-550b-a55b:free', name: '🧠 OpenRouter Nemotron 550B', badge: '550B · Reasoning', vision: false },
-  { id: 'ollama', provider: 'ollama', model: 'qwen3.5:4b', name: '💻 Ollama Local (qwen3.5:4b)', badge: 'Local · Offline', vision: false }
+// Fallback model list used before /api/health responds.
+// Real list (with env-driven model IDs) comes from health.models.
+const DEFAULT_MODELS = [
+  { id: 'gemini', provider: 'gemini', model: 'gemini-3.5-flash-lite', name: '⚡ Google Gemini', badge: 'Fast · Vision', vision: true },
+  { id: 'openrouter', provider: 'openrouter', model: 'nvidia/nemotron-3-ultra-550b-a55b:free', name: '🧠 OpenRouter 550B', badge: 'Reasoning', vision: false },
+  { id: 'ollama', provider: 'ollama', model: 'qwen3.5:4b', name: '💻 Ollama Local', badge: 'Offline', vision: false }
 ]
 
 export default function Ask() {
@@ -49,6 +51,16 @@ export default function Ask() {
   const { data: health } = useFetch(() => api.get('/api/health'), [])
   const { data: ov } = useFetch(() => api.get(`/api/repos/${id}/onboarding`), [id])
 
+  // Use API-driven model list (env vars control model IDs), fallback to defaults
+  const MODELS = (health?.models?.length > 0)
+    ? health.models.map(m => ({
+        ...m,
+        name: m.id === 'gemini' ? `⚡ ${m.name}` :
+              m.id === 'openrouter' ? `🧠 ${m.name}` :
+              m.id === 'ollama' ? `💻 ${m.name}` : m.name
+      }))
+    : DEFAULT_MODELS
+
   // Sync chat messages to localStorage whenever they change
   useEffect(() => {
     try {
@@ -77,10 +89,15 @@ export default function Ask() {
     } catch {}
   }
 
-  // Handle image file selection
+  // Handle image file selection (2 MB size cap to avoid localStorage quota issues)
   const handleImageFile = (e) => {
     const file = e.target.files?.[0]
     if (!file) return
+    if (file.size > 2_000_000) {
+      alert('Image must be under 2 MB. Please resize or crop it first.')
+      e.target.value = ''
+      return
+    }
     const reader = new FileReader()
     reader.onload = (ev) => setImage(ev.target.result)
     reader.readAsDataURL(file)

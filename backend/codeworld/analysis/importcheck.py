@@ -57,6 +57,17 @@ def _py_declared(top: str, deps: set[str]) -> bool:
 
 
 
+def _get_all_paths(ctx) -> set[str]:
+    """Retrieve all indexed file paths from the repository context."""
+    if hasattr(ctx, "con"):
+        try:
+            with ctx.con() as con:
+                return {r["path"] for r in con.execute("SELECT path FROM files")}
+        except Exception:
+            pass
+    return set()
+
+
 def check_diff_imports(ctx, files: dict) -> list[dict]:
     """Check imports that appear in the diff's added lines directly (no git apply needed).
 
@@ -64,13 +75,21 @@ def check_diff_imports(ctx, files: dict) -> list[dict]:
     on Windows the hallucinated-import / hallucinated-api checks still fire.
     """
     g = ctx.graph
-    deps = declared_dependencies(ctx.ref.src)
+    src_dir = getattr(getattr(ctx, "ref", None), "src", None)
+    deps = declared_dependencies(Path(src_dir)) if src_dir and Path(src_dir).exists() else set()
     std = set(getattr(sys, "stdlib_module_names", set()))
     out: list[dict] = []
-    with ctx.con() as con:
-        from ..parser import ParseResult
-        parsed_db = {r["path"]: ParseResult.from_json(r["json"]) for r in con.execute("SELECT path, json FROM parsed")}
-    all_paths: set[str] = set(parsed_db.keys())
+    all_paths: set[str] = set(_get_all_paths(ctx))
+    parsed_db = {}
+    if hasattr(ctx, "con"):
+        try:
+            with ctx.con() as con:
+                from ..parser import ParseResult
+                parsed_db = {r["path"]: ParseResult.from_json(r["json"]) for r in con.execute("SELECT path, json FROM parsed")}
+                if not all_paths:
+                    all_paths = set(parsed_db.keys())
+        except Exception:
+            pass
 
     py_plain_import = re.compile(r"^\s*import\s+(\S+)")
     py_from_import  = re.compile(r"^\s*from\s+(\S+)\s+import\s+(.+)")
@@ -87,7 +106,11 @@ def check_diff_imports(ctx, files: dict) -> list[dict]:
             if m:
                 top = m.group(1).split(".")[0]
                 if top and top not in std:
-                    internal = any(p == top + ".py" or p.startswith(top + "/") for p in all_paths)
+                    internal = any(
+                        p == top + ".py" or p.startswith(top + "/") or
+                        p == f"src/{top}.py" or p.startswith(f"src/{top}/")
+                        for p in all_paths
+                    )
                     installed = _safe_spec(top) and importlib.util.find_spec(top) is not None
                     if not internal and not installed and not _py_declared(top, deps):
                         out.append({"severity": "medium", "category": "hallucinated-import", "path": path, "line": ln,

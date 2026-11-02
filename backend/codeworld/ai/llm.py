@@ -225,14 +225,31 @@ class ChainLLM(LLM):
 
 
 def get_available_models(settings) -> list[dict]:
+    """Return available models driven from environment variables.
+
+    Env vars (set in .env or shell) control which model ID each provider uses,
+    so there's no need to edit code when model IDs rotate on free tiers:
+      CODEWORLD_MODEL_GEMINI     (default: gemini-3.5-flash-lite)
+      CODEWORLD_MODEL_OPENROUTER (default: nvidia/nemotron-3-ultra-550b-a55b:free)
+      CODEWORLD_MODEL_OLLAMA     (default: qwen3.5:4b)
+    """
     gemini_key = os.environ.get("GEMINI_API_KEY", "") or settings.llm_api_key
-    openrouter_key = os.environ.get("OPENROUTER_API_KEY", "") or os.environ.get("CODEWORLD_LLM_API_KEY", "") or settings.llm_api_key
+    openrouter_key = (os.environ.get("OPENROUTER_API_KEY", "") or
+                      os.environ.get("CODEWORLD_LLM_API_KEY", "") or
+                      settings.llm_api_key)
+
+    # Model IDs from env (fall back to sensible defaults)
+    gemini_model = os.environ.get("CODEWORLD_MODEL_GEMINI", "gemini-3.5-flash-lite")
+    openrouter_model = os.environ.get("CODEWORLD_MODEL_OPENROUTER", "nvidia/nemotron-3-ultra-550b-a55b:free")
+    ollama_model = (os.environ.get("CODEWORLD_MODEL_OLLAMA") or
+                    os.environ.get("CODEWORLD_OLLAMA_MODEL") or "qwen3.5:4b")
+
     return [
         {
             "id": "gemini",
             "provider": "gemini",
-            "model": "gemini-3.5-flash-lite",
-            "name": "Google Gemini 3.5 Flash Lite",
+            "model": gemini_model,
+            "name": f"Google Gemini ({gemini_model})",
             "badge": "Gemini · Fast · Vision",
             "vision": True,
             "configured": bool(gemini_key),
@@ -240,17 +257,17 @@ def get_available_models(settings) -> list[dict]:
         {
             "id": "openrouter",
             "provider": "openrouter",
-            "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
-            "name": "OpenRouter Nemotron 550B",
-            "badge": "OpenRouter · 550B · Reasoning",
+            "model": openrouter_model,
+            "name": f"OpenRouter ({openrouter_model.split('/')[-1]})",
+            "badge": "OpenRouter · Reasoning",
             "vision": False,
             "configured": bool(openrouter_key),
         },
         {
             "id": "ollama",
             "provider": "ollama",
-            "model": "qwen3.5:4b",
-            "name": "Ollama Local (qwen3.5:4b)",
+            "model": ollama_model,
+            "name": f"Ollama Local ({ollama_model})",
             "badge": "Local · Offline CPU",
             "vision": False,
             "configured": True,
