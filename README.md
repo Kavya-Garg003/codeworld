@@ -1,5 +1,7 @@
 # CodeWorld
 
+[![CI](https://github.com/Kavya-Garg003/codeworld/actions/workflows/ci.yml/badge.svg)](https://github.com/Kavya-Garg003/codeworld/actions/workflows/ci.yml)
+
 **A map for any codebase.** CodeWorld parses a repository into a typed code knowledge graph, answers questions about it with *verified* citations, shows what a change will break, and reviews AI-written pull requests for the mistakes human reviewers tend to miss. It runs on a laptop CPU, needs no API key, and never executes the code it analyses.
 
 ```
