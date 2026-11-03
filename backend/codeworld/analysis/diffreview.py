@@ -283,3 +283,53 @@ def review_patch(ctx, diff_text: str) -> dict:
         return rep
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
+
+
+def to_sarif(report: dict, tool_name: str = "CodeWorld", tool_version: str = "1.0.0") -> dict:
+    """Export review report findings to SARIF 2.1.0 format for GitHub code scanning."""
+    level_map = {
+        "high": "error",
+        "medium": "warning",
+        "low": "note",
+    }
+    rules = {}
+    results = []
+    for f in report.get("findings", []):
+        cat = f.get("category", "guardrail")
+        if cat not in rules:
+            rules[cat] = {
+                "id": cat,
+                "name": cat.replace("-", " ").title(),
+                "shortDescription": {"text": f.get("title", cat)},
+                "defaultConfiguration": {"level": level_map.get(f.get("severity"), "warning")},
+            }
+        path = f.get("path") or ""
+        line = max(1, int(f.get("line") or 1))
+        loc = [{
+            "physicalLocation": {
+                "artifactLocation": {"uri": path},
+                "region": {"startLine": line, "startColumn": 1},
+            }
+        }] if path else []
+        results.append({
+            "ruleId": cat,
+            "level": level_map.get(f.get("severity"), "warning"),
+            "message": {"text": f"{f.get('title')}: {f.get('detail')}"},
+            "locations": loc,
+        })
+
+    return {
+        "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+        "version": "2.1.0",
+        "runs": [{
+            "tool": {
+                "driver": {
+                    "name": tool_name,
+                    "version": tool_version,
+                    "rules": list(rules.values()),
+                }
+            },
+            "results": results,
+        }],
+    }
+

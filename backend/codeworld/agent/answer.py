@@ -5,7 +5,7 @@ import re
 import time
 
 from ..ai.intent import classify, mentions
-from ..textutil import estimate_tokens
+from ..textutil import estimate_tokens, redact_secrets
 from .tools import Seen, ToolError, ToolRegistry, compact
 
 CITE = re.compile(r"\[([\w./@\-]+\.\w+):(\d+)(?:-(\d+))?\]")
@@ -204,7 +204,7 @@ def run_llm_agent(ctx, question, tools: ToolRegistry, trace: list, history, max_
         except ToolError as e:
             res = {"error": str(e)}
         trace.append({"tool": name, "args": args, "ms": int((time.time() - t0) * 1000), "summary": compact(res, 160)})
-        msgs += [{"role": "assistant", "content": json.dumps(obj)}, {"role": "user", "content": "TOOL RESULT:\n" + compact(res, 4500)}]
+        msgs += [{"role": "assistant", "content": json.dumps(obj)}, {"role": "user", "content": "TOOL RESULT:\n" + redact_secrets(compact(res, 4500))}]
     msgs.append({"role": "user", "content": 'Give your final answer now as {"final": "..."}.'})
     obj = _parse_json(llm.chat(msgs, max_tokens=900)) or {}
     return str(obj["final"]) if "final" in obj else None
@@ -245,7 +245,7 @@ def ask(ctx, question: str, mode: str = "auto", agent: bool = True, history: lis
         if llm.available:
             try:
                 context, used = ctx.retriever.context(hits)
-                prompt_text = f"Question: {question}\n\nCode context:\n{context}"
+                prompt_text = f"Question: {question}\n\nCode context:\n{redact_secrets(context)}"
                 if image:
                     user_content = [
                         {"type": "text", "text": prompt_text + "\n(An image/screenshot has been attached for visual context.)"},

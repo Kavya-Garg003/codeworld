@@ -45,3 +45,27 @@ def fts_text(text: str) -> str:
 
 def estimate_tokens(text: str) -> int:
     return max(1, len(text) // 4)
+
+
+_SECRET_RE = [
+    re.compile(r"AKIA[0-9A-Z]{16}"),
+    re.compile(r"gh[pousr]_[A-Za-z0-9]{36,}"),
+    re.compile(r"AIza[0-9A-Za-z\-_]{35}"),
+    re.compile(r"sk-[a-zA-Z0-9]{20,}"),
+    re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----[\s\S]*?-----END (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----"),
+]
+
+
+def redact_secrets(text: str) -> str:
+    """Redact API keys, tokens, and hardcoded credentials before sending to hosted LLMs."""
+    if not text:
+        return text
+
+    def _cred_sub(m):
+        return f"{m.group(1)}='[REDACTED_SECRET]'"
+
+    text = re.sub(r"(?i)\b(password|passwd|secret|api[_-]?key|token)\b\s*[:=]\s*[\"']([^\"'\s]{8,})[\"']", _cred_sub, text)
+    for pat in _SECRET_RE:
+        text = pat.sub("[REDACTED_SECRET]", text)
+    return text
+

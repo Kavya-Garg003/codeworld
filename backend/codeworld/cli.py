@@ -39,7 +39,7 @@ def main(argv=None):
     s = sub.add_parser("impact", help="change-impact analysis"); s.add_argument("repo"); s.add_argument("target")
     s = sub.add_parser("review", help="AI-PR guardrail on a git range or a diff file")
     s.add_argument("repo"); s.add_argument("--base", default="origin/main"); s.add_argument("--head", default="HEAD"); s.add_argument("--diff-file")
-    s.add_argument("--fail-on", choices=["high", "medium", "never"], default="high"); s.add_argument("--json", action="store_true"); s.add_argument("--output")
+    s.add_argument("--fail-on", choices=["high", "medium", "never"], default="high"); s.add_argument("--json", action="store_true"); s.add_argument("--sarif", action="store_true"); s.add_argument("--output")
     s = sub.add_parser("onboard", help="write the onboarding guide"); s.add_argument("repo"); s.add_argument("--output", default="ONBOARDING.md"); s.add_argument("--narrate", action="store_true")
     s = sub.add_parser("health", help="health report"); s.add_argument("repo")
     s = sub.add_parser("security", help="attack-surface report"); s.add_argument("repo")
@@ -113,14 +113,20 @@ def main(argv=None):
         ctx = _repo(st, a.repo)
         diff = Path(a.diff_file).read_text() if a.diff_file else diffreview.git_diff(ctx.ref.src, a.base, a.head)
         rep = diffreview.review_diff(ctx, diff) if not a.diff_file else diffreview.review_patch(ctx, diff)
-        out = json.dumps({k: v for k, v in rep.items() if k != "graph"}, indent=2) if a.json else diffreview.to_markdown(rep, emoji=True)
+        if a.sarif:
+            out = json.dumps(diffreview.to_sarif(rep), indent=2)
+        elif a.json:
+            out = json.dumps({k: v for k, v in rep.items() if k != "graph"}, indent=2)
+        else:
+            out = diffreview.to_markdown(rep, emoji=True)
         # Write to stdout safely; errors="replace" handles consoles that don't support emoji
         try:
             print(out)
         except UnicodeEncodeError:
             print(out.encode("ascii", errors="replace").decode("ascii"))
         if a.output:
-            Path(a.output).write_text(rep["markdown"], encoding="utf-8")
+            out_content = out if (a.sarif or a.json) else rep["markdown"]
+            Path(a.output).write_text(out_content, encoding="utf-8")
         if a.fail_on != "never" and (rep["counts"]["high"] or (a.fail_on == "medium" and rep["counts"]["medium"])):
             sys.exit(1)
     elif a.cmd == "onboard":

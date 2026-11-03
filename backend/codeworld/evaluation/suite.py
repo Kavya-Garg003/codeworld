@@ -37,7 +37,8 @@ def rss_mb() -> int:
         if _res is None:
             # Windows: use psutil if available, else estimate from process
             try:
-                import psutil, os as _os
+                import psutil
+                import os as _os
                 return psutil.Process(_os.getpid()).memory_info().rss // (1024 * 1024)
             except Exception:
                 return 0
@@ -100,7 +101,7 @@ def run_repo(cfg, args, out: Path) -> dict:
     if "doc2code" in steps:
         ds = autoqa.doc2code(ctx, args.n)
         r = qa_eval.evaluate(ctx, ds, ["bm25", "vector", "hybrid", "graph", "auto"], 10)
-        res["doc2code"] = {"n": len(ds), **r["per_mode"]}
+        res["doc2code"] = {"n": len(ds), **r["per_mode"], "rows": r.get("rows")}
         print("   doc2code", {m: v.get("sym_R@10") for m, v in r["per_mode"].items()})
     if "callgraph" in steps and truth:
         res["callgraph"] = callgraph_eval.evaluate(ctx, str(out / f"{cfg['name']}_truth.json"))
@@ -116,7 +117,7 @@ def run_repo(cfg, args, out: Path) -> dict:
             gold = set(q["gold_symbols"])
             p_.append(len(got & gold) / len(got) if got else 0.0)
             r_.append(len(got & gold) / len(gold))
-        res["callers"] = {"n": len(ds), **r["per_mode"], "tool_find_callers": {"precision_lower_bound": round(sum(p_) / max(1, len(p_)), 3), "recall": round(sum(r_) / max(1, len(r_)), 3)}}
+        res["callers"] = {"n": len(ds), **r["per_mode"], "rows": r.get("rows"), "tool_find_callers": {"precision_lower_bound": round(sum(p_) / max(1, len(p_)), 3), "recall": round(sum(r_) / max(1, len(r_)), 3)}}
         print("   callers", res["callers"]["tool_find_callers"])
     if "impact" in steps and stats["git"]:
         res["impact"] = impact_eval.evaluate(ctx, args.commits)
@@ -130,6 +131,68 @@ def run_repo(cfg, args, out: Path) -> dict:
         rc = res["real_commits"]
         print("   real commits:", {k: rc.get(k) for k in ("commits", "with_high", "with_medium_or_high")})
     return res
+
+
+def bootstrap_ci(values: list[float], n_boot: int = 1000, alpha: float = 0.05, seed: int = 42) -> tuple[float, float]:
+    """95% bootstrap confidence interval over sample values."""
+    if not values:
+        return 0.0, 0.0
+    if len(values) == 1:
+        return round(values[0], 4), round(values[0], 4)
+    import random
+    rng = random.Random(seed)
+    n = len(values)
+    means = []
+    for _ in range(n_boot):
+        sample = [values[rng.randint(0, n - 1)] for _ in range(n)]
+        means.append(sum(sample) / n)
+    means.sort()
+    low_idx = int((alpha / 2.0) * n_boot)
+    high_idx = int((1.0 - alpha / 2.0) * n_boot)
+    return round(means[low_idx], 4), round(means[high_idx], 4)
+
+
+def wilcoxon_signed_rank(x: list[float], y: list[float]) -> tuple[float, float]:
+    """Pure-Python paired Wilcoxon signed-rank test. Returns (statistic, p-value approx)."""
+    import math
+    diffs = [a - b for a, b in zip(x, y) if a != b]
+    n = len(diffs)
+    if n == 0:
+        return 0.0, 1.0
+    abs_diffs = sorted([(abs(d), d > 0) for d in diffs])
+    ranks = [0.0] * n
+    i = 0
+    while i < n:
+        j = i
+        while j < n and abs_diffs[j][0] == abs_diffs[i][0]:
+            j += 1
+        avg_rank = (i + 1 + j) / 2.0
+        for k in range(i, j):
+            ranks[k] = avg_rank
+        i = j
+    w_pos = sum(ranks[k] for k in range(n) if abs_diffs[k][1])
+    w_neg = sum(ranks[k] for k in range(n) if not abs_diffs[k][1])
+    w = min(w_pos, w_neg)
+    mean_w = n * (n + 1) / 4.0
+    var_w = n * (n + 1) * (2 * n + 1) / 24.0
+    z = (w - mean_w) / math.sqrt(var_w) if var_w > 0 else 0.0
+    p = 2.0 * (1.0 - 0.5 * (1.0 + math.erf(abs(z) / math.sqrt(2.0))))
+    return round(w, 2), round(min(1.0, max(0.0, p)), 4)
+
+
+def holm_bonferroni(p_values: list[float]) -> list[float]:
+    """Holm-Bonferroni step-down correction for multiple testing."""
+    m = len(p_values)
+    if m == 0:
+        return []
+    indexed = sorted(enumerate(p_values), key=lambda x: x[1])
+    adjusted = [0.0] * m
+    running_max = 0.0
+    for rank, (orig_idx, p) in enumerate(indexed):
+        adj = min(1.0, (m - rank) * p)
+        running_max = max(running_max, adj)
+        adjusted[orig_idx] = round(running_max, 4)
+    return adjusted
 
 
 def aggregate(results: list[dict], out: Path) -> None:
@@ -207,6 +270,67 @@ def aggregate(results: list[dict], out: Path) -> None:
         for r in rc:
             x = r["real_commits"]
             L.append(f"| {r['repo']} | {x['commits']} | {x['with_high']} | {x['with_medium_or_high']} | {x['verdicts']} |")
+
+    # Miss taxonomy table
+    miss_reps = [r for r in cg if "miss_taxonomy" in r.get("callgraph", {})]
+    if miss_reps:
+        tax_keys = list(miss_reps[0]["callgraph"]["miss_taxonomy"])
+        L += ["", "## Call-graph miss taxonomy (resolver level 2 vs dynamic trace)",
+              "| repo | " + " | ".join(k.replace('_', ' ') for k in tax_keys) + " |",
+              "|---|" + "---|" * len(tax_keys)]
+        for r in miss_reps:
+            tax = r["callgraph"]["miss_taxonomy"]
+            L.append(f"| {r['repo']} | " + " | ".join(str(tax.get(k, 0)) for k in tax_keys) + " |")
+
+    # Statistical significance & 95% bootstrap CIs
+    ci_rows = []
+    sig_rows = []
+    for r in results:
+        repo = r["repo"]
+        for exp_key in ("doc2code", "callers"):
+            exp_data = r.get(exp_key, {})
+            rows_map = exp_data.get("rows", {})
+            if rows_map:
+                for mode in ("bm25", "vector", "hybrid", "graph", "auto"):
+                    mode_rows = rows_map.get(mode, [])
+                    vals = [row.get("sym_R@10", 0.0) for row in mode_rows if isinstance(row, dict)]
+                    if vals:
+                        low, high = bootstrap_ci(vals)
+                        mean_val = round(sum(vals) / len(vals), 3)
+                        ci_rows.append((repo, exp_key, mode, mean_val, f"[{low:.3f}, {high:.3f}]"))
+                raw_pairs = []
+                for m_a, m_b in [("auto", "bm25"), ("auto", "vector"), ("graph", "bm25")]:
+                    a_vals = [row.get("sym_R@10", 0.0) for row in rows_map.get(m_a, []) if isinstance(row, dict)]
+                    b_vals = [row.get("sym_R@10", 0.0) for row in rows_map.get(m_b, []) if isinstance(row, dict)]
+                    if len(a_vals) == len(b_vals) and a_vals:
+                        w, p = wilcoxon_signed_rank(a_vals, b_vals)
+                        raw_pairs.append((m_a, m_b, w, p))
+                if raw_pairs:
+                    adj_p = holm_bonferroni([p for _, _, _, p in raw_pairs])
+                    for (m_a, m_b, w, p), p_adj in zip(raw_pairs, adj_p):
+                        sig_rows.append((repo, exp_key, f"{m_a} vs {m_b}", w, p, p_adj, "p < 0.05" if p_adj < 0.05 else "n.s."))
+
+    if ci_rows:
+        L += ["", "## 95% Bootstrap Confidence Intervals (symbol Recall@10)",
+              "| repo | experiment | mode | mean | 95% Bootstrap CI |",
+              "|---|---|---|---|---|"]
+        for repo, exp, mode, mean_v, ci_str in ci_rows:
+            L.append(f"| {repo} | {exp} | {mode} | {mean_v} | {ci_str} |")
+
+    if sig_rows:
+        L += ["", "## Hypothesis Testing & Significance (Paired Wilcoxon with Holm Correction)",
+              "| repo | experiment | comparison | W stat | p-value | Holm adj. p | significance |",
+              "|---|---|---|---|---|---|---|"]
+        for repo, exp, comp, w_stat, p_val, p_adj, sig in sig_rows:
+            L.append(f"| {repo} | {exp} | {comp} | {w_stat} | {p_val:.4f} | {p_adj:.4f} | {sig} |")
+
+    L += ["", "## Low-End Hardware & Resource Profile",
+          "| repo | LOC | index time (s) | peak RAM (MB) | storage (files) | CPU footprint |",
+          "|---|---|---|---|---|---|"]
+    for r in results:
+        sc = r.get("scale", {})
+        L.append(f"| {r['repo']} | {sc.get('loc', 0):,} | {sc.get('index_seconds', 0)}s | {sc.get('peak_rss_mb', 0)} MB | {sc.get('files', 0)} files | CPU-only (no GPU required) |")
+
     (out / "report.md").write_text("\n".join(L) + "\n", encoding="utf-8")
     try:
         import matplotlib

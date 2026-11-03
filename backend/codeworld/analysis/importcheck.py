@@ -2,6 +2,7 @@
 from __future__ import annotations
 import importlib.util
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -68,6 +69,34 @@ def _get_all_paths(ctx) -> set[str]:
     return set()
 
 
+_PACKAGE_REGISTRY_CACHE: dict[tuple[str, str], bool] = {}
+
+
+def check_package_registry_exists(pkg: str, ecosystem: str = "pypi", timeout: float = 1.5) -> bool | None:
+    """Check PyPI or npm registry to confirm if a package genuinely exists.
+    Returns:
+        True: Package exists on public registry.
+        False: Package does NOT exist (404, hallucinated package name).
+        None: Network disabled, offline, or request timed out.
+    """
+    if not pkg:
+        return None
+    key = (ecosystem, pkg.lower())
+    if key in _PACKAGE_REGISTRY_CACHE:
+        return _PACKAGE_REGISTRY_CACHE[key]
+    if os.environ.get("CODEWORLD_OFFLINE", "0") == "1" or os.environ.get("CODEWORLD_CHECK_REGISTRY", "1") == "0":
+        return None
+    try:
+        import httpx
+        url = f"https://pypi.org/pypi/{pkg}/json" if ecosystem == "pypi" else f"https://registry.npmjs.org/{pkg}"
+        r = httpx.get(url, timeout=timeout, follow_redirects=True)
+        exists = (r.status_code == 200)
+        _PACKAGE_REGISTRY_CACHE[key] = exists
+        return exists
+    except Exception:
+        return None
+
+
 def check_diff_imports(ctx, files: dict) -> list[dict]:
     """Check imports that appear in the diff's added lines directly (no git apply needed).
 
@@ -113,9 +142,11 @@ def check_diff_imports(ctx, files: dict) -> list[dict]:
                     )
                     installed = _safe_spec(top) and importlib.util.find_spec(top) is not None
                     if not internal and not installed and not _py_declared(top, deps):
+                        pypi_ok = check_package_registry_exists(top, "pypi")
+                        pypi_note = " Confirmed not found on PyPI (likely hallucinated)." if pypi_ok is False else ""
                         out.append({"severity": "medium", "category": "hallucinated-import", "path": path, "line": ln,
                                     "title": f"Unresolvable package '{top}'",
-                                    "detail": f"`{top}` is not part of the repo, the standard library, an installed package, or the declared dependencies."})
+                                    "detail": f"`{top}` is not part of the repo, the standard library, an installed package, or declared dependencies.{pypi_note}"})
                 continue
             # from X import Y [as Z], ...
             m2 = py_from_import.match(line)
@@ -184,9 +215,11 @@ def check_imports(ctx, added: dict[str, set[int]] | None = None) -> list[dict]:
                     internal = bool(g.node(f"file:{top}.py")) or any(p.startswith(top + "/") or p == top + ".py" or p.startswith("src/" + top + "/") for p in parsed)
                     installed = _safe_spec(top) and importlib.util.find_spec(top) is not None
                     if not internal and not installed and not _py_declared(top, deps):
+                        pypi_ok = check_package_registry_exists(top, "pypi")
+                        pypi_note = " Confirmed not found on PyPI (likely hallucinated)." if pypi_ok is False else ""
                         out.append({"severity": "medium", "category": "hallucinated-import", "path": path, "line": imp.line,
                                     "title": f"Unresolvable package '{top}'",
-                                    "detail": f"`{top}` is not part of the repo, the standard library, an installed package, or the declared dependencies. AI assistants sometimes invent package names - verify it exists before installing."})
+                                    "detail": f"`{top}` is not part of the repo, the standard library, an installed package, or the declared dependencies.{pypi_note} AI assistants sometimes invent package names - verify it exists before installing."})
                 if imp.kind == "from" and imp.names:
                     target = _internal_target(g, parsed, path, imp)
                     if target:
@@ -209,8 +242,11 @@ def check_imports(ctx, added: dict[str, set[int]] | None = None) -> list[dict]:
                 else:
                     base = imp.module.split("/")[0] if not imp.module.startswith("@") else "/".join(imp.module.split("/")[:2])
                     if base.replace("node:", "") not in NODE_BUILTINS and base not in deps:
+                        npm_ok = check_package_registry_exists(base, "npm")
+                        npm_note = " Confirmed not found on npm registry." if npm_ok is False else ""
                         out.append({"severity": "medium", "category": "hallucinated-import", "path": path, "line": imp.line,
-                                    "title": f"Package '{base}' is not in package.json", "detail": "Not declared as a dependency - verify it exists."})
+                                    "title": f"Package '{base}' is not in package.json",
+                                    "detail": f"Not declared as a dependency - verify it exists.{npm_note}"})
         # attribute-level: alias.func() where alias is an internal module that lacks `func`
         for c in pr.calls:
             if want is not None and c.line not in want:

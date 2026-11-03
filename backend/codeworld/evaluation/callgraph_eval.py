@@ -56,5 +56,33 @@ def evaluate(ctx, truth_path: str, levels=(0, 1, 2, 3), min_conf: float = 0.0) -
     for lv in levels:
         pred = predicted_edges(parsed, lv, ctx.ref.src, min_conf)
         out[f"level{lv}"] = {**prf(pred, truth), "visible": prf(pred, visible)}
+
+    # Miss taxonomy classification on default resolver level 2
+    pred2 = predicted_edges(parsed, 2, ctx.ref.src, min_conf)
+    misses = truth - pred2
+    miss_taxonomy = {
+        "dunder_protocol": 0,
+        "callback_or_invoke": 0,
+        "decorator_or_property": 0,
+        "dynamic_dispatch": 0,
+        "unresolved_chain": 0,
+    }
+    for a, b in misses:
+        callee_sym = b.split("::", 1)[1] if "::" in b else b
+        last_name = callee_sym.split(".")[-1]
+        if last_name.startswith("__") and last_name.endswith("__") and last_name != "__init__":
+            miss_taxonomy["dunder_protocol"] += 1
+        elif (a, b) not in visible:
+            if any(k in a.lower() or k in b.lower() for k in ("invoke", "callback", "dispatch", "handler", "command")):
+                miss_taxonomy["callback_or_invoke"] += 1
+            else:
+                miss_taxonomy["decorator_or_property"] += 1
+        else:
+            if any(k in callee_sym.lower() for k in ("filter", "objects", "query", "session", "chain")):
+                miss_taxonomy["unresolved_chain"] += 1
+            else:
+                miss_taxonomy["dynamic_dispatch"] += 1
+
     return {"truth_edges": len(truth), "visible_edges": len(visible), "levels": out,
+            "miss_taxonomy": miss_taxonomy,
             "note": "level0=name-only, 1=scope+imports, 2=+type flow, 3=+Jedi; 'visible' = observed calls that have a matching call expression in the caller"}

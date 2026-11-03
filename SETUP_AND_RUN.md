@@ -158,7 +158,7 @@ Dataset format, protocol, threats to validity and a paper outline: `docs/RESEARC
 ## 9. Tests
 
 ```bash
-cd backend && python -m pytest           # 41 tests, ~30 s (34 original + 7 fixpack tests)
+cd backend && python -m pytest           # 49 tests (34 original + 7 fixpack + 8 config/features tests)
 cd vscode-extension && node test/smoke.js
 codeworld doctor                         # environment + provider self-test
 ```

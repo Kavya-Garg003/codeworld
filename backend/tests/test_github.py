@@ -69,7 +69,8 @@ def test_issue_suspects_flow(data_dir, tmp_path, monkeypatch, capsys):
 
 def test_ci_cli_flow_matches_the_workflow_template(data_dir, tmp_path):
     """Replays the commands in .github/workflows/codeworld-review.yml against a local 'origin'."""
-    import shutil, sys
+    import shutil
+    import sys
     work = tmp_path / "w"
     shutil.copytree(FIXTURE, work)
     env = {**os.environ, "GIT_AUTHOR_NAME": "a", "GIT_AUTHOR_EMAIL": "a@x", "GIT_COMMITTER_NAME": "a", "GIT_COMMITTER_EMAIL": "a@x"}
