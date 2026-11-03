@@ -51,3 +51,4 @@ def compare_dev_vs_heldout_generalization() -> dict[str, Any]:
             "interpretation": "Sub-2.0 point gap confirms rule invariants generalize beyond initial training repos without overfitting.",
         },
     }
+

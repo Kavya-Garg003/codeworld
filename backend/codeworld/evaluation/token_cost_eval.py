@@ -54,3 +54,4 @@ def simulate_token_cost_experiment(queries: list[str] | None = None) -> dict[str
             "context_bloat_reduction_ratio": round(grep_agent_metrics["peak_context_tokens"] / codeworld_mcp_metrics["peak_context_tokens"], 1),
         },
     }
+

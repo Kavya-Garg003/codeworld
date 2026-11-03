@@ -30,3 +30,4 @@ We conducted a counterbalanced, within-subjects pilot study with 3 developer par
 - **Caller Traversal Speed**: In Task T2 (identifying callers of core command dispatchers), baseline participants spent an average of 225 seconds manually filtering text matches. With CodeWorld, participants retrieved the exact call graph in under 75 seconds.
 - **PR Defect Interception**: On Task T5 (auditing a PR containing a hallucinated package), all 3 baseline participants failed to catch the invented dependency, whereas CodeWorld flagged it immediately with high severity and an explanation citing PyPI verification.
 - **Usability (SUS = 92.5)**: Participants praised the instant response latency and verified line citations (`[path:line]`).
+

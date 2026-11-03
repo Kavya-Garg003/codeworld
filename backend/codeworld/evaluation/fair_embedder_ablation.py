@@ -150,3 +150,4 @@ def generate_ablation_table() -> list[dict[str, Any]]:
             "notes": "Over-smoothes tail ranks",
         },
     ]
+

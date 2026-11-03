@@ -239,3 +239,4 @@ def parse_go(path: str, src: bytes) -> ParseResult:
         todos=todos,
         effects=sorted(list(walker.module_effects)),
     )
+
