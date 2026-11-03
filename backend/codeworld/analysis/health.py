@@ -228,12 +228,14 @@ def health_report(ctx) -> dict:
 
 
 def _health_report(ctx) -> dict:
+    from .docdrift import check_doc_drift
     g = ctx.graph
     cyc, lay, dead, dup, ut = import_cycles(g), layering_violations(ctx), dead_code(ctx), duplicates(ctx), untested(g)
     cx = complexity_top(g)
+    dd = check_doc_drift(ctx)
     score = 100.0
     score -= min(20, 6 * len(cyc)) + min(15, 3 * len(lay)) + min(10, 0.5 * len([d for d in dead if d["confidence"] == "high"]))
     score -= min(10, 3 * len(dup)) + min(10, 2 * len(cx)) + 25 * (1 - ut["coverage"])
     return {"score": round(max(0.0, score), 1), "cycles": cyc, "layering": lay, "layering_rules": load_rules(ctx)["source"], "dead_code": dead,
             "duplicates": dup, "untested": ut, "complexity": cx, "hotspots": hotspots(ctx), "bus_factor": bus_factor(ctx),
-            "communities": communities(ctx)}
+            "communities": communities(ctx), "doc_drift": dd}

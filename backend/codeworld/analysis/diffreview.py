@@ -1,5 +1,6 @@
 """AI-PR guardrail: graph-aware review of a diff. Catches what code review of AI-generated changes tends to miss."""
 from __future__ import annotations
+from pathlib import Path
 import re
 import subprocess
 
@@ -11,6 +12,89 @@ from .impact import impact
 from .security import SEV, SINKS, attack_surface
 
 SEVERITY_ORDER = {"high": 3, "medium": 2, "low": 1, "info": 0}
+
+
+def suggest_reviewers(src_path: Path | None, files: list[str], max_reviewers: int = 4) -> list[dict]:
+    """Suggest reviewers based on git commit author history for modified files."""
+    if not src_path or not files:
+        return []
+    import collections
+    counts: collections.Counter = collections.Counter()
+    try:
+        cmd = ["git", "log", "-n", "80", "--format=%an", "--"] + files[:15]
+        res = subprocess.run(cmd, cwd=src_path, capture_output=True, text=True, check=False, timeout=5)
+        for line in res.stdout.splitlines():
+            a = line.strip()
+            if a:
+                counts[a] += 1
+    except Exception:
+        return []
+    return [{"name": name, "commits": c} for name, c in counts.most_common(max_reviewers)]
+
+
+def compute_architecture_diff(base_graph, head_graph, changed_files: set[str]) -> dict:
+    """Identify new dependencies, call edges, and symbols introduced by the PR."""
+    base_edges = set()
+    if base_graph:
+        for src, out_map in getattr(base_graph, "out", {}).items():
+            for dst, conf, t, rule in out_map.get("CALLS", []) + out_map.get("IMPORTS", []):
+                base_edges.add((src, dst, t))
+
+    new_calls = []
+    new_imports = []
+    new_symbols = []
+
+    if head_graph:
+        for n_id, n_data in head_graph.nodes.items():
+            if n_data.get("path") in changed_files:
+                if not base_graph or n_id not in base_graph.nodes:
+                    new_symbols.append({"id": n_id, "qualname": n_data.get("qualname"), "kind": n_data.get("kind"), "path": n_data.get("path")})
+        for src, out_map in getattr(head_graph, "out", {}).items():
+            s_node = head_graph.nodes.get(src, {})
+            if s_node.get("path") in changed_files:
+                for dst, conf, t, rule in out_map.get("CALLS", []) + out_map.get("IMPORTS", []):
+                    edge_key = (src, dst, t)
+                    if edge_key not in base_edges:
+                        d_node = head_graph.nodes.get(dst, {})
+                        item = {
+                            "source": s_node.get("qualname", src),
+                            "target": d_node.get("qualname", dst),
+                            "type": t,
+                        }
+                        if t == "CALLS":
+                            new_calls.append(item)
+                        else:
+                            new_imports.append(item)
+
+    return {
+        "new_symbols": new_symbols[:15],
+        "new_calls": new_calls[:15],
+        "new_imports": new_imports[:15],
+        "summary": {
+            "new_symbols": len(new_symbols),
+            "new_calls": len(new_calls),
+            "new_imports": len(new_imports),
+        },
+    }
+
+
+def summarize_pr_risk(report: dict) -> str:
+    """Generate a succinct PR summary and risk explanation grounded in graph facts."""
+    counts = report.get("counts", {})
+    files = report.get("changed_files", [])
+    b = report.get("blast_radius") or {}
+    risk = b.get("risk", {})
+    level = risk.get("level", "low")
+    score = risk.get("score", 0)
+
+    summary = (
+        f"This pull request modifies {len(files)} file{'s' if len(files) != 1 else ''}. "
+        f"Guardrail risk assessment is **{level.upper()}** (score {score}/100) with "
+        f"{counts.get('high', 0)} high and {counts.get('medium', 0)} medium severity finding{'s' if counts.get('medium', 0) != 1 else ''}. "
+    )
+    if b.get("tests"):
+        summary += f"Impact analysis identified {len(b['tests'])} reaching regression test{'s' if len(b['tests']) != 1 else ''}."
+    return summary
 
 
 def parse_unified_diff(text: str) -> dict[str, dict]:
@@ -195,10 +279,14 @@ def review_diff(ctx, diff_text: str) -> dict:
             seen.add(k); uniq.append(f)
     counts = {s: sum(1 for f in uniq if f["severity"] == s) for s in ("high", "medium", "low")}
     verdict = "fail" if counts["high"] else "warn" if counts["medium"] else "pass"
+    src_dir = getattr(getattr(ctx, "ref", None), "src", None)
+    reviewers = suggest_reviewers(Path(src_dir) if src_dir else None, sorted(files))
     report = {"verdict": verdict, "counts": counts, "findings": uniq,
               "changed_files": sorted(files), "changed_symbols": [g.nodes[s]["qualname"] for s in changed],
               "blast_radius": {k: blast[k] for k in ("risk", "counts", "apis", "tests", "likely_tests", "files")} if blast and "error" not in blast else None,
-              "graph": blast["graph"] if blast and "error" not in blast else {"nodes": [], "edges": []}}
+              "graph": blast["graph"] if blast and "error" not in blast else {"nodes": [], "edges": []},
+              "suggested_reviewers": reviewers}
+    report["executive_summary"] = summarize_pr_risk(report)
     report["markdown"] = to_markdown(report, emoji=False)
     return report
 
@@ -213,12 +301,22 @@ def to_markdown(r: dict, emoji: bool = True) -> str:
             "fail": "\u274c" if _safe else "[FAIL]"}[r["verdict"]]
     out = [f"## {icon} CodeWorld PR Guardrail: **{r['verdict'].upper()}**",
            f"{r['counts']['high']} high · {r['counts']['medium']} medium · {r['counts']['low']} low | {len(r['changed_files'])} files, {len(r['changed_symbols'])} symbols changed", ""]
+    if r.get("executive_summary"):
+        out += [f"> {r['executive_summary']}", ""]
     b = r.get("blast_radius")
     if b:
         out += [f"**Blast radius:** {b['risk']['level']} ({b['risk']['score']}/100): {b['counts']['symbols']} dependent symbols, {b['counts']['files']} files, "
                 f"{b['counts']['apis']} endpoints, {b['counts']['tests']} tests reach this change.", ""]
-        if b["tests"]:
+        if b.get("test_command"):
+            out += [f"**Run tests command:** `{b['test_command']}`", ""]
+        elif b.get("tests"):
             out += ["**Run these tests first:** " + ", ".join(f"`{t['name']}`" for t in b["tests"][:8]), ""]
+    arch = r.get("architecture_diff")
+    if arch and (arch["summary"]["new_calls"] or arch["summary"]["new_imports"]):
+        out += [f"**Architecture diff:** {arch['summary']['new_symbols']} new symbols, {arch['summary']['new_calls']} new calls, {arch['summary']['new_imports']} new imports.", ""]
+    revs = r.get("suggested_reviewers")
+    if revs:
+        out += ["**Suggested reviewers:** " + ", ".join(f"`{x['name']}` ({x['commits']} commits)" for x in revs[:4]), ""]
     for sev in ("high", "medium", "low"):
         items = [f for f in r["findings"] if f["severity"] == sev]
         if items:
@@ -278,6 +376,8 @@ def review_patch(ctx, diff_text: str) -> dict:
         index_repo(s, ref)
         tctx = RepoContext(s, ref)
         rep = review_diff(tctx, diff_text)
+        parsed_diff = parse_unified_diff(diff_text)
+        rep["architecture_diff"] = compute_architecture_diff(ctx.graph, tctx.graph, set(parsed_diff.keys()))
         rep["note"] = "applied to a scratch copy of the indexed snapshot and re-indexed; your index was not modified."
         rep["markdown"] = rep["markdown"] + "\n\n_Patch " + rep["note"] + "_"
         return rep

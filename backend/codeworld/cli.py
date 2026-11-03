@@ -108,6 +108,8 @@ def main(argv=None):
         from .analysis.impact import impact
         r = impact(_repo(st, a.repo), a.target)
         print(json.dumps({k: r[k] for k in r if k != "graph"}, indent=2, default=str))
+        if r.get("test_command"):
+            print(f"\n[Test Selection] Recommended test command:\n  {r['test_command']}\n")
     elif a.cmd == "review":
         from .analysis import diffreview
         ctx = _repo(st, a.repo)

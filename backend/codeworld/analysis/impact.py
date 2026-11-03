@@ -98,16 +98,51 @@ def impact(ctx, target, depth: int = 5, min_conf: float = 0.5, with_cochange: bo
             for dst, conf, *_ in g.out[n].get(t, []):
                 if dst in keep_set and conf >= min_conf:
                     sub_edges.append({"source": n, "target": dst, "type": t})
+    final_tests = sorted([{"id": n, "name": g.nodes[n]["qualname"], "path": g.nodes[n]["path"], "distance": d} for n, d in tests], key=lambda x: (x["distance"], x["name"]))
     return {
         "target": [g.nodes[s]["qualname"] for s in seeds[:5]], "seeds": seeds[:20],
         "risk": {"score": score, "level": level, "reasons": reasons},
         "direct": sorted(_brief(g, [n for n, d in prod if d == 1]), key=lambda x: x["name"]), "indirect": sorted(_brief(g, [n for n, d in prod if d > 1]), key=lambda x: x["name"])[:80],
         "files": files[:80], "apis": apis,
-        "tests": sorted([{"id": n, "name": g.nodes[n]["qualname"], "path": g.nodes[n]["path"], "distance": d} for n, d in tests], key=lambda x: (x["distance"], x["name"])),
+        "tests": final_tests,
         "likely_tests": likely_tests, "cochange": cochange,
+        "test_command": generate_test_command(final_tests, likely_tests),
         "counts": {"symbols": n_prod, "direct": sum(1 for _, d in prod if d == 1), "files": len(files), "apis": len(apis), "tests": len(tests)},
         "graph": {"nodes": sub_nodes, "edges": sub_edges},
     }
+
+
+def generate_test_command(tests: list[dict], likely_tests: list[dict] | None = None) -> str:
+    """Generate a runnable pytest or jest/npm command for targeted regression testing."""
+    test_paths: set[str] = set()
+    test_symbols: set[str] = set()
+    for t in (tests or []):
+        p = t.get("path")
+        if p:
+            test_paths.add(p)
+        name = t.get("name")
+        if name and "::" in name:
+            test_symbols.add(name.split("::")[-1])
+        elif name:
+            test_symbols.add(name)
+    for lt in (likely_tests or []):
+        p = lt.get("path")
+        if p:
+            test_paths.add(p)
+    if not test_paths:
+        return ""
+    sorted_paths = sorted(test_paths)
+    is_python = any(p.endswith(".py") for p in sorted_paths)
+    is_js = any(p.endswith((".js", ".ts", ".jsx", ".tsx")) for p in sorted_paths)
+    if is_python:
+        cmd = f"pytest {' '.join(sorted_paths)}"
+        if test_symbols and len(test_symbols) <= 8:
+            k_expr = " or ".join(sorted(test_symbols))
+            cmd += f' -k "{k_expr}"'
+        return cmd
+    elif is_js:
+        return f"npm test -- {' '.join(sorted_paths)}"
+    return f"pytest {' '.join(sorted_paths)}"
 
 
 def _brief(g, ids):
@@ -119,5 +154,7 @@ def tests_for(ctx, target, depth: int = 6, min_conf: float = 0.5) -> dict:
     r = impact(ctx, target, depth=depth, min_conf=min_conf, with_cochange=True, max_graph_nodes=5)
     if "error" in r:
         return r
+    cmd = r.get("test_command") or generate_test_command(r["tests"], r["likely_tests"])
     return {"target": r["target"], "tests": r["tests"], "likely_tests": r["likely_tests"],
+            "test_command": cmd,
             "cochange_tests": [c for c in r["cochange"] if "test" in c["path"].lower()]}

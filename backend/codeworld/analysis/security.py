@@ -1,8 +1,10 @@
 """Heuristic attack-surface map: which API endpoints can reach dangerous sinks, plus basic secret scanning.
 This is a triage aid, NOT a replacement for a real SAST tool (CodeQL, Semgrep, Bandit)."""
 from __future__ import annotations
+import os
 import re
 from collections import deque
+from pathlib import Path
 
 from ..parser import ParseResult
 
@@ -106,11 +108,72 @@ def scan_secrets(ctx, limit: int = 40) -> list[dict]:
     return out[:limit]
 
 
+_OSV_CACHE: dict[tuple[str, str], list[dict]] = {}
+
+
+def scan_dependency_cves(ctx, max_queries: int = 15, timeout: float = 2.0) -> list[dict]:
+    """Look up declared dependencies against the free OSV.dev database."""
+    if os.environ.get("CODEWORLD_OFFLINE", "0") == "1":
+        return []
+    src = getattr(getattr(ctx, "ref", None), "src", None)
+    if not src:
+        return []
+    src_path = Path(src)
+    if not src_path.exists():
+        return []
+
+    from .importcheck import declared_dependencies
+    deps = declared_dependencies(src_path)
+    if not deps:
+        return []
+
+    is_js = (src_path / "package.json").exists()
+    eco = "npm" if is_js else "PyPI"
+
+    cves = []
+    try:
+        import httpx
+        for pkg in sorted(deps)[:max_queries]:
+            key = (eco, pkg.lower())
+            if key in _OSV_CACHE:
+                cves.extend(_OSV_CACHE[key])
+                continue
+            try:
+                r = httpx.post(
+                    "https://api.osv.dev/v1/query",
+                    json={"package": {"name": pkg, "ecosystem": eco}},
+                    timeout=timeout,
+                )
+                pkg_cves = []
+                if r.status_code == 200:
+                    data = r.json()
+                    for v in data.get("vulns", [])[:2]:
+                        pkg_cves.append({
+                            "id": v.get("id"),
+                            "package": pkg,
+                            "ecosystem": eco,
+                            "summary": v.get("summary", "Known vulnerability"),
+                            "severity": "high" if "CRITICAL" in str(v.get("severity", [])) or "HIGH" in str(v.get("severity", [])) else "medium",
+                            "reference": f"https://osv.dev/vulnerability/{v.get('id')}",
+                        })
+                _OSV_CACHE[key] = pkg_cves
+                cves.extend(pkg_cves)
+            except Exception:
+                continue
+    except Exception:
+        pass
+    return cves
+
+
 def security_report(ctx) -> dict:
     def build():
         f, a, s = findings(ctx), attack_surface(ctx), scan_secrets(ctx)
-        return {"findings": f, "attack_surface": a, "secrets": s,
-                "summary": {"critical": sum(1 for x in f if x["severity"] == "critical"), "high": sum(1 for x in f if x["severity"] == "high") + len(s),
-                            "medium": sum(1 for x in f if x["severity"] == "medium"), "endpoints_at_risk": len(a)},
-                "disclaimer": "Heuristic triage based on call-graph reachability; use CodeQL/Semgrep/Bandit for real security audits."}
+        cves = scan_dependency_cves(ctx)
+        return {"findings": f, "attack_surface": a, "secrets": s, "cves": cves,
+                "summary": {"critical": sum(1 for x in f if x["severity"] == "critical"),
+                            "high": sum(1 for x in f if x["severity"] == "high") + len(s) + sum(1 for c in cves if c["severity"] == "high"),
+                            "medium": sum(1 for x in f if x["severity"] == "medium") + sum(1 for c in cves if c["severity"] == "medium"),
+                            "endpoints_at_risk": len(a),
+                            "cves_found": len(cves)},
+                "disclaimer": "Heuristic triage based on call-graph reachability + OSV.dev CVE database; use CodeQL/Semgrep/Bandit for real security audits."}
     return ctx.cached("security", build)

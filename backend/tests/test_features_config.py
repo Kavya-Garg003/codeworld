@@ -195,3 +195,110 @@ def test_package_registry_check(monkeypatch):
     importcheck._PACKAGE_REGISTRY_CACHE[("pypi", "my_nonexistent_mock_pkg_12345")] = False
     assert check_package_registry_exists("my_nonexistent_mock_pkg_12345", "pypi") is False
 
+
+def test_generate_test_command():
+    """Verify test selection command generation for pytest and npm."""
+    from codeworld.analysis.impact import generate_test_command
+
+    py_tests = [{"path": "tests/test_auth.py", "name": "test_login"}]
+    cmd = generate_test_command(py_tests)
+    assert "pytest tests/test_auth.py" in cmd
+    assert '-k "test_login"' in cmd
+
+    js_tests = [{"path": "tests/auth.test.js", "name": "auth"}]
+    js_cmd = generate_test_command(js_tests)
+    assert "npm test -- tests/auth.test.js" in js_cmd
+
+
+def test_osv_cve_lookup(monkeypatch, tmp_path):
+    """Verify OSV CVE vulnerability check and cache."""
+    from codeworld.analysis.security import scan_dependency_cves, _OSV_CACHE
+
+    class DummyRef:
+        src = tmp_path
+
+    class DummyCtx:
+        ref = DummyRef()
+
+    # Offline check
+    monkeypatch.setenv("CODEWORLD_OFFLINE", "1")
+    assert scan_dependency_cves(DummyCtx()) == []
+
+    # Online cache check
+    monkeypatch.delenv("CODEWORLD_OFFLINE", raising=False)
+    req = tmp_path / "requirements.txt"
+    req.write_text("vulnerable-pkg==1.0.0\n", encoding="utf-8")
+    _OSV_CACHE[("PyPI", "vulnerable_pkg")] = [{
+        "id": "GHSA-1234-test",
+        "package": "vulnerable_pkg",
+        "ecosystem": "PyPI",
+        "summary": "Mock vulnerability",
+        "severity": "high",
+        "reference": "https://osv.dev/vulnerability/GHSA-1234-test"
+    }]
+    cves = scan_dependency_cves(DummyCtx())
+    assert len(cves) == 1
+    assert cves[0]["id"] == "GHSA-1234-test"
+
+
+def test_doc_drift_detection(tmp_path):
+    """Verify detection of documented symbols that do not exist in the codebase."""
+    from codeworld.analysis.docdrift import check_doc_drift
+
+    readme = tmp_path / "README.md"
+    readme.write_text("To use the app, call `removed_function_v1` or `ActiveService`.\n", encoding="utf-8")
+
+    class DummyGraph:
+        nodes = {
+            "sym:ActiveService": {"qualname": "ActiveService"},
+        }
+
+    class DummyRef:
+        src = tmp_path
+
+    class DummyCtx:
+        graph = DummyGraph()
+        ref = DummyRef()
+
+    findings = check_doc_drift(DummyCtx())
+    symbols = [f["symbol"] for f in findings]
+    assert "removed_function_v1" in symbols
+    assert "ActiveService" not in symbols
+
+
+def test_architecture_diff_and_reviewers():
+    """Verify architecture diff calculation and executive risk summary."""
+    from codeworld.analysis.diffreview import compute_architecture_diff, summarize_pr_risk
+
+    class MockGraph:
+        def __init__(self, nodes, out):
+            self.nodes = nodes
+            self.out = out
+
+    base_g = MockGraph(
+        nodes={"f1": {"path": "a.py", "qualname": "old_fn"}},
+        out={"f1": {}}
+    )
+    head_g = MockGraph(
+        nodes={
+            "f1": {"path": "a.py", "qualname": "old_fn"},
+            "f2": {"path": "a.py", "qualname": "new_fn", "kind": "function"}
+        },
+        out={"f1": {"CALLS": [("f2", 1.0, "CALLS", "rule1")]}}
+    )
+
+    diff = compute_architecture_diff(base_g, head_g, {"a.py"})
+    assert diff["summary"]["new_symbols"] == 1
+    assert diff["summary"]["new_calls"] == 1
+
+    report = {
+        "verdict": "warn",
+        "counts": {"high": 0, "medium": 1, "low": 0},
+        "changed_files": ["a.py"],
+        "blast_radius": {"risk": {"level": "medium", "score": 45}, "tests": [{"name": "test_a"}]}
+    }
+    summary = summarize_pr_risk(report)
+    assert "MEDIUM" in summary
+    assert "45/100" in summary
+
+

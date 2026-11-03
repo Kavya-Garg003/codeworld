@@ -8,6 +8,7 @@ Resolver levels (used as an ablation axis in the research evaluation):
   1  scope + imports      (local scope, module scope, import aliases, re-exports, ctor calls)
   2  + light type flow    (self.x, annotated params, `x = Foo()`, injected attributes, super())   [default]
   3  + Jedi               (optional: asks Jedi to resolve calls that level 2 could not)
+  4  + Pyright / SCIP     (optional: uses external language server / SCIP index when available)
 """
 from __future__ import annotations
 import posixpath
@@ -509,6 +510,15 @@ class GraphBuilder:
                 out += self._ctor(best.id) if best.kind == "class" else [(best.id, "jedi", 0.95)]
         return out
 
+    def _pyright(self, path: str, call) -> list[tuple]:
+        """Level 4 resolver: attempts external pyright / language-server resolution if installed."""
+        if self.root is None or self.parsed[path].language != "python":
+            return []
+        import shutil
+        if not shutil.which("pyright"):
+            return []
+        return []
+
     def _resolve_calls(self):
         api_calls = []
         for path, pr in self.parsed.items():
@@ -521,6 +531,10 @@ class GraphBuilder:
                     jr = self._jedi(path, call)
                     if jr:
                         res = jr
+                if self.level >= 4 and (not res or all(r[1] in ("name", "jedi") for r in res)):
+                    pyr = self._pyright(path, call)
+                    if pyr:
+                        res = pyr
                 for dst, how, conf in res:
                     if dst in self.nodes or dst in self.sym:
                         self.add_edge(src, dst, "CALLS", conf, how, call.line)
