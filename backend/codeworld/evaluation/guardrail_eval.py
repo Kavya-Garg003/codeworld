@@ -133,17 +133,20 @@ def real_commits(ctx, k: int = 25, max_files: int = 8) -> dict:
     src = ctx.ref.src
     if not (src / ".git").exists():
         return {"error": "needs a git clone with history"}
-    out = subprocess.run(["git", "-C", str(src), "log", "-n", str(k * 4), "--no-merges", "--format=%H"], capture_output=True, text=True).stdout.split()
+    out = subprocess.run(["git", "-C", str(src), "log", "-n", str(k * 4), "--no-merges", "--format=%H"],
+                         capture_output=True, text=True, encoding="utf-8", errors="replace").stdout.split()
     s = get_settings()
     rows, findings_all = [], []
     for sha in out:
         if len(rows) >= k:
             break
-        files = subprocess.run(["git", "-C", str(src), "diff", "--name-only", f"{sha}~1", sha], capture_output=True, text=True).stdout.split()
+        files = subprocess.run(["git", "-C", str(src), "diff", "--name-only", f"{sha}~1", sha],
+                               capture_output=True, text=True, encoding="utf-8", errors="replace").stdout.split()
         py = [f for f in files if f.endswith(".py")]
         if not py or len(py) > max_files:
             continue
-        diff = subprocess.run(["git", "-C", str(src), "diff", "--unified=0", "--no-color", f"{sha}~1", sha, "--", *py], capture_output=True, text=True).stdout
+        diff = subprocess.run(["git", "-C", str(src), "diff", "--unified=0", "--no-color", f"{sha}~1", sha, "--", *py],
+                              capture_output=True, text=True, encoding="utf-8", errors="replace").stdout
         tmp = Path(tempfile.mkdtemp(prefix="cw_rc_"))
         try:
             dst = tmp / "src"

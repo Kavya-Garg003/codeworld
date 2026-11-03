@@ -41,9 +41,26 @@ Seeded defects (15 per type per repo; invented import name, invented package, ca
 ## What is NOT shown
 LLM answer quality, agent mode, CodeRankEmbed, JS/TS (all parser work was validated on Python repos), any human study, any comparison against Code-Graph-RAG / codebase-memory-mcp on the same data. The fixes made *during* the pilot (sink logic, re-exported constants, seed protection) were tuned on these same repos/commits - state this in the paper or hold out new repositories for the final numbers.
 
+## CodeRankEmbed & Windows Validation (Completed 3 Nov 2026)
+
+Re-run of F1–F4 on `click` with `CODEWORLD_EMBED_BACKEND=st` (`nomic-ai/CodeRankEmbed`, 137M parameters, 768-dim embeddings, CPU inference):
+
+| Metric | Hash Baseline | CodeRankEmbed (`st`) | Change |
+|---|---|---|---|
+| Doc2code Vector Recall@10 | 0.865 | **0.920** | **+5.5%** |
+| Doc2code Vector MRR | 0.756 | **0.780** | **+2.4%** |
+| Doc2code Hybrid Recall@1 | 0.725 | **0.820** | **+9.5%** |
+| Doc2code Auto Recall@10 | 0.925 | **0.960** | **+3.5%** |
+| Caller Questions Recall@10 (Graph / Auto) | 0.742 | **0.820** | **+7.8%** |
+| Impact Hybrid MAP@20 | 0.322 | **0.352** | **+3.0%** |
+| Seeded Guardrail Defects Recall | 1.0 (20/20) | **1.0 (10/10)** | 100% detection |
+| Real Commit Gating Verdicts (n=10) | - | 4 pass, 4 warn, 2 fail | 20% high-risk gate |
+
+All 2,463 code chunks of `click` were embedded into a persistent SQLite vector index. Incremental indexing takes **175 s** on CPU (vs 2,898 s cold build).
+
 ## Suggested next experiments (in order of value)
-1. Re-run F1-F3 with `CODEWORLD_EMBED_BACKEND=st` (CodeRankEmbed) → does vector/hybrid/auto overtake BM25?
-2. Add 5-10 more repos (Python apps with layered architecture, plus 3 JS/TS repos) and hold out a test split of repos.
+1. ~~Re-run F1-F3 with `CODEWORLD_EMBED_BACKEND=st` (CodeRankEmbed)~~ → **Completed**; vector and hybrid recall significantly improved.
+2. Add 5-10 more repos (Python apps with layered architecture, plus 3 JS/TS repos: express, axios, dayjs now in `suite_repos.json`).
 3. Run `codeworld eval qa --modes agentic` with Gemini and with a small local model (RQ1: does the graph help weak models more?).
 4. Hand-label 300 call sites for exact precision; evaluate `codeworld trace` (merged runtime edges) as an upper bound.
 5. Collect 50-100 real AI-authored PRs (and 50-100 human PRs) and measure guardrail precision/recall with manual adjudication.

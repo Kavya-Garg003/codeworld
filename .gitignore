@@ -11,6 +11,8 @@ frontend/dist/
 suite_work/
 *.log
 results/quick/
+results/quick_st/
 results/full/
 .venv-exp/
 frontend/dist/
+.vscode/

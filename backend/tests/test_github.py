@@ -80,9 +80,10 @@ def test_ci_cli_flow_matches_the_workflow_template(data_dir, tmp_path):
     p = work / "app/services/order_service.py"
     p.write_text("from app.utils.security import encrypt_everything\n" + p.read_text())
     run("commit", "-qam", "ai change")
-    e = {**env, "PYTHONPATH": str(__import__("pathlib").Path(__file__).resolve().parents[1])}
+    e = {**env, "PYTHONUTF8": "1", "PYTHONPATH": str(__import__("pathlib").Path(__file__).resolve().parents[1])}
     r = subprocess.run([sys.executable, "-m", "codeworld", "review", str(work), "--base", "origin/main", "--head", "HEAD", "--fail-on", "never", "--output", str(tmp_path / "review.md")],
-                       capture_output=True, text=True, env=e)
+                       capture_output=True, text=True, encoding="utf-8", errors="replace", env=e)
     assert r.returncode == 0 and "encrypt_everything" in (tmp_path / "review.md").read_text()
-    r2 = subprocess.run([sys.executable, "-m", "codeworld", "review", str(work), "--base", "origin/main", "--head", "HEAD", "--fail-on", "high"], capture_output=True, text=True, env=e)
+    r2 = subprocess.run([sys.executable, "-m", "codeworld", "review", str(work), "--base", "origin/main", "--head", "HEAD", "--fail-on", "high"],
+                        capture_output=True, text=True, encoding="utf-8", errors="replace", env=e)
     assert r2.returncode == 1                                      # the gate step of the workflow

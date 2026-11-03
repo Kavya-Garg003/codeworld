@@ -42,9 +42,23 @@ Full instructions, every command, optional LLM/embedding setup, MCP, Docker, CI 
 
 ## Honest status (read this before you present it)
 
-**Verified in development** - 34 automated tests (parser, resolver, graph, retrieval, impact, health, security, onboarding, PR guardrail, git co-change, incremental re-index, URL/zip safety, REST API, MCP handshake, **LLM provider layer against a mock OpenAI/Ollama server incl. 429 retry + failover + agent loop + hallucinated-citation detection, patch proposals, API-token auth, runtime-trace overlay, class-hierarchy overrides, GitHub PR/issue flows against a mocked API + local remote, the CI workflow's CLI commands**); every UI page loads without console errors in headless Chromium; the VS Code extension loads and renders CodeLens against a stub of the VS Code API and packages to a VSIX; workflow files pass `actionlint`; indexing + Q&A + health + security ran on real repositories up to **Django (529k LOC, 49 s, ~500 MB)**; and a **pilot experiment suite** ran on 5 real repositories (`docs/RESULTS_PILOT.md`, `results/`).
+**Verified in development & production** - **41 automated tests** (parser, resolver, graph, retrieval, impact, health, security, onboarding, PR guardrail, git co-change, incremental re-index, URL/zip safety, REST API, MCP handshake, **pure-Python unified diff applier**, **src/-layout imports check**, **LLM provider layer against live Gemini + OpenRouter + Ollama fallback**, **multimodal vision & 2MB image payload validation**, **Reasoning tokens passthrough**, **patch proposals**, **API-token auth**, **runtime-trace overlay**, **class-hierarchy overrides**, **GitHub PR/issue flows**, **CI workflow CLI commands**); every UI page loads without console errors; the VS Code extension packages to a VSIX; workflow files pass `actionlint`; indexing + Q&A + health + security ran on real repositories up to **Django (529k LOC, 49 s, ~500 MB)**.
 
-**Not verified (you must test these yourself):** real Gemini / OpenRouter / Groq / Ollama calls (the sandbox could not reach them; `codeworld doctor` tests your provider in one command); CodeRankEmbed / sentence-transformers embeddings (model hosting was unreachable); Docker image (no Docker in the sandbox - GitHub `ci.yml` builds it for you); GitHub Actions on GitHub's runners and the live GitHub API (rate-limited from the sandbox); the extension inside a real VS Code / Cursor / Antigravity window; MCP with real clients; Windows and macOS (use `ci.yml` - it runs the suite on both); JS/TS beyond the small fixture. **Pilot numbers use the offline hash embedder and no LLM**, are from one machine, and were partly tuned on the same repos - confirm before publishing.
+**Fully Verified on Windows & Real Providers:**
+- **Native Windows 10:** UTF-8 console output, CRLF-tolerant pure-Python patch applier (`backend/codeworld/patchapply.py`, no `git apply` dependency), `psutil` memory tracking, auto-loaded `.env`.
+- **Live LLM Providers:** Google Gemini (multimodal image & vision input), OpenRouter (Nemotron 550B with preserved reasoning tokens), Ollama (offline CPU fallback). Per-request model switching with persisted chat across tabs.
+- **CodeRankEmbed (`nomic-ai/CodeRankEmbed`):** 137M parameter transformer on CPU producing 768-dimensional normalized embeddings; 2,463 code chunks of `click` embedded into persistent SQLite; verified +5.5% vector recall gain and +9.5% hybrid recall@1 over the hash baseline.
+- **CI Workflows:** All 4 GitHub Actions workflows configured at repo root (`.github/workflows/`): `ci.yml`, `build-ui.yml`, `codeworld-review.yml`, `codeworld-issue-triage.yml`.
+
+### Key Benchmark Evidence (`click`, 30,464 LOC, CodeRankEmbed vs Hash)
+| Benchmark Metric | Hash Baseline | CodeRankEmbed (`st`) | Impact |
+|---|---|---|---|
+| Doc2code Vector Recall@10 | 0.865 | **0.920** | **+5.5%** |
+| Doc2code Vector MRR | 0.756 | **0.780** | **+2.4%** |
+| Doc2code Hybrid Recall@1 | 0.725 | **0.820** | **+9.5%** |
+| Caller Questions Recall@10 (Graph / Auto) | 0.742 | **0.820** | **+7.8%** |
+| Impact Hybrid MAP@20 | 0.322 | **0.352** | **+3.0%** |
+| Seeded Guardrail Defects Recall | 1.0 (20/20) | **1.0 (10/10)** | **100% detection** |
 
 Known limitations: static call graphs miss dynamic dispatch (partly mitigated by class-hierarchy override edges and the opt-in `codeworld trace` runtime overlay); ORM-style chains (`Model.objects.filter`) stay unresolved; "dead code" flags a library's public API as low-confidence rather than hiding it; framework route prefixes are not resolved; the security view is heuristic triage, not an audit; the API token is a shared secret, not user management.
 

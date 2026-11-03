@@ -24,6 +24,11 @@ HERE = Path(__file__).parent
 
 
 def sh(cmd, cwd=None, timeout=1800, **kw):
+    kw.setdefault("encoding", "utf-8")
+    kw.setdefault("errors", "replace")
+    env = kw.get("env") or os.environ.copy()
+    env.setdefault("PYTHONUTF8", "1")
+    kw["env"] = env
     return subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=timeout, **kw)
 
 

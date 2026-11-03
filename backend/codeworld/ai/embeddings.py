@@ -60,7 +60,9 @@ class STEmbedder(Embedder):
         self.model = SentenceTransformer(model, trust_remote_code=True, device="cpu")
         self.model.max_seq_length = min(getattr(self.model, "max_seq_length", 512) or 512, 512)
         self.prefix = CODERANK_PREFIX if "coderank" in model.lower() else ""
-        self.name, self.dim = f"st:{model}", int(self.model.get_sentence_embedding_dimension())
+        dim_fn = getattr(self.model, "get_embedding_dimension", getattr(self.model, "get_sentence_embedding_dimension", None))
+        self.dim = int(dim_fn()) if dim_fn else 768
+        self.name = f"st:{model}"
 
     def embed_docs(self, texts):
         return np.asarray(self.model.encode(texts, batch_size=16, normalize_embeddings=True, show_progress_bar=False), dtype=np.float32)

@@ -6,7 +6,7 @@
 |---|---|---|---|
 | Python | 3.10 or newer (3.12 tested) | `python3 --version` | **Yes** |
 | git | any | `git --version` | **Yes** (cloning + history mining) |
-| Node.js + npm | 18+ (22 tested) | `node --version` | Only if the `frontend/dist` folder is missing or you want to edit the UI. The zip ships with a prebuilt UI |
+| Node.js + npm | 18+ (22 tested) | `node --version` | **Required for git clones** (`frontend/dist` is git-ignored; a prebuilt dist is attached to each release). Skip only if you download the release zip. |
 | RAM | 4 GB is enough for the default setup | | |
 | GPU | **not needed** | | |
 | Internet | only to clone GitHub repos / download optional models | | |
@@ -158,7 +158,7 @@ Dataset format, protocol, threats to validity and a paper outline: `docs/RESEARC
 ## 9. Tests
 
 ```bash
-cd backend && python -m pytest           # 34 tests, ~25 s
+cd backend && python -m pytest           # 41 tests, ~30 s (34 original + 7 fixpack tests)
 cd vscode-extension && node test/smoke.js
 codeworld doctor                         # environment + provider self-test
 ```
@@ -185,6 +185,8 @@ docker compose --profile llm up -d        # optional Ollama container
 | Slow first embedding run with `st` | Model download + CPU inference; later runs reuse cached vectors |
 | LLM answers say "LLM call failed" | Check Ollama is running (`ollama list`) / the API key / base URL; the offline answer is shown meanwhile |
 | Windows: `sqlite3 ... fts5` error | Use the python.org Python 3.10+ build (FTS5 is included) |
+| Model picker in Ask shows wrong model IDs | Rotate free-tier model IDs in `.env`: `CODEWORLD_MODEL_GEMINI`, `CODEWORLD_MODEL_OPENROUTER`, `CODEWORLD_MODEL_OLLAMA` |
+| `psutil` not found (peak memory shows 0) | `pip install psutil>=5.9` (now in `requirements.txt`; reinstall if your venv is older) |
 
 ## 12. What NOT to do
 
