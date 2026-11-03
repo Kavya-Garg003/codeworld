@@ -35,3 +35,4 @@ jobs:
           name: nightly-benchmark-report
           path: results/nightly/report.md
           if-no-files-found: error
+
