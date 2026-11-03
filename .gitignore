@@ -13,3 +13,4 @@ suite_work/
 .venv-exp/
 frontend/dist/
 .vscode/
+paper/
