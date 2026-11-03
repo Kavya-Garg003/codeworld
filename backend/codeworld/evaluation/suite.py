@@ -1,9 +1,9 @@
-"""One-command experiment suite for the paper.
+"""Benchmark and evaluation suite for CodeWorld.
 
     python -m codeworld.evaluation.suite --repos click,flask --steps all --out results/
 Steps: scale, doc2code, callgraph, callers, impact, guardrail, commits       (use --steps scale,doc2code to pick)
 Everything is written as JSON per repository plus summary.csv / report.md (+ PNG figures if matplotlib is installed).
-LLM-dependent comparisons are NOT run here; run `codeworld eval qa --modes ...agentic` with your provider configured (see docs/RESEARCH.md).
+LLM-dependent comparisons are NOT run here; run `codeworld eval qa --modes ...agentic` with your provider configured.
 """
 from __future__ import annotations
 import argparse

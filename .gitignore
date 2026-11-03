@@ -14,3 +14,8 @@ suite_work/
 frontend/dist/
 .vscode/
 paper/
+results/
+docs/RESEARCH.md
+docs/RESULTS_PILOT.md
+docs/research/
+

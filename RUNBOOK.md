@@ -15,7 +15,7 @@ python --version ; git --version ; node --version
 ## B. Get the code and fix the repo layout (do once)
 Your GitHub repo has everything inside a `codeworld\` subfolder, so GitHub ignores `.github\workflows`. Move it up to the root:
 ```powershell
-cd C:\path\to\your\clone-of-Kavya-Garg003-codeworld
+cd C:\path\to\your\clone-of-codeworld
 git mv codeworld\.github .github
 git mv codeworld\.gitignore .gitignore
 git mv codeworld\.env.example .env.example
@@ -119,7 +119,7 @@ In VS Code: Ctrl+Shift+P → "CodeWorld: Select repository".
 claude mcp add codeworld -- C:\path\to\repo\.venv\Scripts\python.exe -m codeworld.mcp_server --repo C:\path\to\your\project
 ```
 
-## K. Paper experiments
+## K. Benchmark and evaluation experiments
 ### K1. Pilot suite (retrieval, call-graph fidelity, impact, guardrail) - no LLM needed
 Use a throw-away venv: the suite pip-installs the test dependencies of the repos it analyses and executes their tests.
 ```powershell

@@ -2,7 +2,7 @@
 
 For each held-out commit and each changed source file s: truth = the *other* source files changed in the same commit.
 Predictors rank candidate files for s:   static (call/import graph) | cochange (mined from earlier commits) | hybrid (RRF) | churn (baseline).
-Limitation (state it in the paper): the static graph is built from HEAD, not from each historical commit.
+Limitation: the static graph is built from HEAD, not from each historical commit.
 """
 from __future__ import annotations
 import itertools
