@@ -20,13 +20,11 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install CodeWorld
-        run: |
-          git clone --depth 1 https://github.com/<YOUR-ORG>/codeworld.git /tmp/codeworld     # <-- point at your fork of CodeWorld
-          pip install -r /tmp/codeworld/backend/requirements.txt
+        run: pip install -r backend/requirements.txt
       - name: Run guardrail (the checked-out tree IS the PR head, so no patching is needed)
         id: review
         env:
-          PYTHONPATH: /tmp/codeworld/backend
+          PYTHONPATH: ${{ github.workspace }}/backend
           CODEWORLD_DATA_DIR: /tmp/cw-data
         run: |
           python -m codeworld review . --base "origin/${{ github.base_ref }}" --head HEAD --fail-on never --output review.md

@@ -11,14 +11,13 @@ jobs:
   triage:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
-      - run: |
-          git clone --depth 1 https://github.com/<YOUR-ORG>/codeworld.git /tmp/codeworld
-          pip install -r /tmp/codeworld/backend/requirements.txt
+      - run: pip install -r backend/requirements.txt
       - name: Suggest suspects
         env:
-          PYTHONPATH: /tmp/codeworld/backend
+          PYTHONPATH: ${{ github.workspace }}/backend
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CODEWORLD_DATA_DIR: /tmp/cw-data
         run: python -m codeworld github issue "${{ github.repository }}" "${{ github.event.issue.number }}" --post

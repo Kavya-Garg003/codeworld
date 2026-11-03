@@ -30,10 +30,27 @@ def trace(root: Path, run: str) -> list[list[str]]:
                 cache[fn] = None
         return cache[fn]
 
+    def qualname(frame):
+        """co_qualname exists only on Python >= 3.11; on 3.10 recover Class.method from the frame's first argument."""
+        code = frame.f_code
+        q = getattr(code, "co_qualname", None)
+        if q:
+            return q
+        name = code.co_name
+        if code.co_argcount and code.co_varnames[0] in ("self", "cls"):
+            obj = frame.f_locals.get(code.co_varnames[0])
+            klass = obj if isinstance(obj, type) else type(obj)
+            for k in getattr(klass, "__mro__", ()):
+                fn = k.__dict__.get(name)
+                fn = getattr(fn, "__func__", fn)
+                if getattr(fn, "__code__", None) is code:
+                    return f"{k.__qualname__}.{name}"
+        return name
+
     def key(frame):
         code = frame.f_code
         r = rel(code.co_filename)
-        q = getattr(code, "co_qualname", code.co_name).replace("<locals>.", "")
+        q = qualname(frame).replace("<locals>.", "")
         return None if r is None or q.startswith("<") else f"{r}::{q}"
 
     def prof(frame, event, arg):
