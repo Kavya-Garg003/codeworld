@@ -3,11 +3,6 @@
   "project": "CodeWorld",
   "version": "1.0.0",
   "date": "2026-11-03",
-  "zenodo_archive": {
-    "title": "CodeWorld: Graph-RAG Code Knowledge Graph, Verified-Citation Q&A, Change Impact Analysis, and AI-PR Guardrails on CPU",
-    "doi_reserved": "10.5281/zenodo.10293847",
-    "citation_file": "CITATION.cff"
-  },
   "random_seeds": {
     "benchmark_split_seed": 42,
     "bootstrap_ci_seed": 42,
