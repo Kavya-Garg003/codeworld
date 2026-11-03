@@ -70,3 +70,4 @@ def check_doc_drift(ctx) -> list[dict]:
                         })
 
     return findings[:30]
+

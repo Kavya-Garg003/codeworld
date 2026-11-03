@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
 from pathlib import Path
 
 from .config import get_settings
@@ -47,6 +48,8 @@ def main(argv=None):
     s = sub.add_parser("doctor", help="check environment, LLM and embedding provider"); s.add_argument("--list-models", action="store_true")
     s = sub.add_parser("trace", help="run a repo's tests under a tracer and merge observed calls into the graph (EXECUTES the repo's code)")
     s.add_argument("repo"); s.add_argument("--run", default="pytest -q"); s.add_argument("--yes", action="store_true", help="confirm you trust the code")
+    s = sub.add_parser("watch", help="watch repo and incrementally re-index on file changes")
+    s.add_argument("repo"); s.add_argument("--interval", type=float, default=2.0)
     s = sub.add_parser("fix", help="propose a patch for a task (needs an LLM); validated by the guardrail, never auto-applied")
     s.add_argument("repo"); s.add_argument("task"); s.add_argument("--out", help="write the diff here")
     s = sub.add_parser("github", help="GitHub helpers: review-pr, issue, comment")
@@ -149,6 +152,37 @@ def main(argv=None):
     elif a.cmd == "mcp":
         from .mcp_server import serve
         serve(a.repo)
+    elif a.cmd == "watch":
+        ctx = _repo(st, a.repo)
+        src_path = Path(ctx.ref.src)
+        print(f"[*] Watching {src_path} for changes... Press Ctrl+C to stop.")
+        mtimes: dict[str, float] = {}
+        for p in src_path.rglob("*"):
+            if p.is_file() and not any(part in p.parts for part in (".git", ".venv", "node_modules", "__pycache__")):
+                try:
+                    mtimes[str(p)] = p.stat().st_mtime
+                except Exception:
+                    pass
+        try:
+            while True:
+                time.sleep(a.interval)
+                changed = False
+                for p in src_path.rglob("*"):
+                    if p.is_file() and not any(part in p.parts for part in (".git", ".venv", "node_modules", "__pycache__")):
+                        try:
+                            mt = p.stat().st_mtime
+                            if str(p) not in mtimes or mtimes[str(p)] != mt:
+                                mtimes[str(p)] = mt
+                                changed = True
+                        except Exception:
+                            pass
+                if changed:
+                    print(f"[{time.strftime('%H:%M:%S')}] Detected file modification, re-indexing...")
+                    from .indexer import index_repo
+                    index_repo(st, ctx.ref)
+                    print(f"[{time.strftime('%H:%M:%S')}] Incremental index up to date.")
+        except KeyboardInterrupt:
+            print("\n[*] Stopped watcher.")
     elif a.cmd == "eval":
         from .evaluation import runner
         runner.run(st, a)

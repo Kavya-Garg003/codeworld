@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use CodeWorld in your research, please cite it as below."
+authors:
+  - family-names: "Garg"
+    given-names: "Kavya"
+    orcid: "https://orcid.org/0009-0000-0000-0000"
+title: "CodeWorld: Graph-RAG Code Knowledge Graph, Verified-Citation Q&A, Change Impact Analysis, and AI-PR Guardrails on CPU"
+version: 1.0.0
+date-released: 2026-11-03
+url: "https://github.com/Kavya-Garg003/codeworld"
+repository-code: "https://github.com/Kavya-Garg003/codeworld"
+license: "MIT"
+keywords:
+  - "code knowledge graph"
+  - "graph rag"
+  - "software engineering"
+  - "call graph"
+  - "change impact analysis"
+  - "ai code review"
+  - "program analysis"
