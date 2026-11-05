@@ -156,7 +156,7 @@ class OpenAICompatLLM(HTTPLLM):
             else:
                 clean_msgs.append(m)
 
-        payload = {"model": self.model, "messages": clean_msgs, "temperature": temperature, "max_tokens": max_tokens}
+        payload = {"model": self.model, "messages": clean_msgs, "temperature": temperature, "max_tokens": max(max_tokens, 4000)}
         if self.label == "openrouter" or "openrouter.ai" in self.base:
             payload["reasoning"] = {"enabled": True}
         d = self._post(f"{self.base}/chat/completions", payload, h, 180)
